@@ -1,0 +1,88 @@
+"use client";
+
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/lib/supabase/types";
+
+type GalleryItem = Database["public"]["Tables"]["gallery_items"]["Row"];
+
+type Props = {
+  items: GalleryItem[];
+};
+
+export function GalleryAdminManager({ items }: Props) {
+  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const supabase = createClient();
+  const router = useRouter();
+
+  async function onUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (items.length >= 8) {
+      setStatus("Limite alcanzado: maximo 8 imagenes en galeria.");
+      return;
+    }
+    if (!file) return;
+
+    setLoading(true);
+    setStatus("");
+    try {
+      const filePath = `gallery/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("cava-assets").upload(filePath, file);
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("cava-assets").getPublicUrl(filePath);
+
+      const { error: insertError } = await supabase.from("gallery_items").insert({
+        title: null,
+        image_url: data.publicUrl,
+        sort_order: items.length + 1,
+      } as never);
+      if (insertError) throw insertError;
+
+      setFile(null);
+      setStatus("Imagen agregada.");
+      router.refresh();
+    } catch {
+      setStatus("No se pudo subir la imagen.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteItem(id: string) {
+    await supabase.from("gallery_items").delete().eq("id", id);
+    router.refresh();
+  }
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={onUpload} className="space-y-3 rounded-xl border bg-[var(--admin-card)] p-5">
+        <p className="text-sm text-[var(--foreground-muted)]">{items.length}/8 imagenes</p>
+        <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full rounded-md border bg-transparent p-3" required />
+        <button disabled={loading || items.length >= 8} className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-black disabled:opacity-50">
+          {loading ? "Subiendo..." : "Subir imagen"}
+        </button>
+        {status && <p className="text-sm text-[var(--foreground-muted)]">{status}</p>}
+      </form>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {items.map((item) => (
+          <div key={item.id} className="rounded-md border bg-[var(--admin-card)] p-4">
+            <div className="aspect-[4/3] overflow-hidden rounded-md">
+              <img src={item.image_url} alt={item.title ?? "Imagen de galeria"} className="h-full w-full object-cover" />
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-sm">{item.title ?? "Imagen de galeria"}</p>
+              <button onClick={() => deleteItem(item.id)} className="rounded-md border p-2 text-[var(--admin-danger)]">
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

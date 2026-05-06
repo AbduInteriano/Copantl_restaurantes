@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0d0d0d;
+  --background-secondary: #120f12;
+  --surface: #191417;
+  --accent-gold: #660e1a;
+  --accent-burgundy: #660e1a;
+  --foreground: #f5f0e8;
+  --foreground-muted: #baac9b;
+  --border: #3a2329;
+  --admin-bg: #111111;
+  --admin-sidebar: #0d0d0d;
+  --admin-card: #1c1c1c;
+  --admin-accent: #660e1a;
+  --admin-danger: #c0392b;
+  --admin-success: #27ae60;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-cardo);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-cardo), serif;
+}
+
+.grain-overlay {
+  position: relative;
+}
+
+.grain-overlay::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: radial-gradient(#fff 0.5px, transparent 0.5px);
+  background-size: 3px 3px;
+  mix-blend-mode: soft-light;
+}
+
+.section-title {
+  font-family: var(--font-cardo), serif;
+  letter-spacing: 0.08em;
+}
+
+.gold-divider {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+}
