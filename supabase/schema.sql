@@ -136,6 +136,54 @@ create unique index if not exists reservations_confirmada_mesa_slot_uidx
 on public.reservations (reservation_date, reservation_time, mesa)
 where status = 'confirmada' and mesa is not null;
 
+-- Perfiles de panel: administrador (todo) vs supervisor (solo reservas)
+do $$ begin
+  create type public.app_role as enum ('admin', 'supervisor');
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.user_profiles (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  role public.app_role not null,
+  created_at timestamptz not null default now()
+);
+
+insert into public.user_profiles (user_id, role)
+select id, 'admin'::public.app_role from auth.users
+on conflict (user_id) do nothing;
+
+create or replace function public.is_app_admin()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    return false;
+  end if;
+  if not exists (select 1 from public.user_profiles where user_id = auth.uid()) then
+    return true;
+  end if;
+  return exists (
+    select 1 from public.user_profiles
+    where user_id = auth.uid() and role = 'admin'::public.app_role
+  );
+end;
+$$;
+
+grant execute on function public.is_app_admin() to authenticated, anon;
+
+alter table public.user_profiles enable row level security;
+
+drop policy if exists "user_profiles_select" on public.user_profiles;
+create policy "user_profiles_select"
+on public.user_profiles for select
+to authenticated
+using (auth.uid() = user_id or public.is_app_admin());
+
 alter table public.site_settings enable row level security;
 alter table public.menu_categories enable row level security;
 alter table public.menu_items enable row level security;
@@ -166,25 +214,46 @@ drop policy if exists "Public create reservations" on public.reservations;
 create policy "Public create reservations" on public.reservations for insert with check (true);
 
 drop policy if exists "Admin full access categories" on public.menu_categories;
-create policy "Admin full access categories" on public.menu_categories for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+drop policy if exists "Admin manage categories" on public.menu_categories;
+create policy "Admin manage categories" on public.menu_categories
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
 
 drop policy if exists "Admin full access items" on public.menu_items;
-create policy "Admin full access items" on public.menu_items for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+drop policy if exists "Admin manage items" on public.menu_items;
+create policy "Admin manage items" on public.menu_items
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
 
 drop policy if exists "Admin full access promotions" on public.promotions;
-create policy "Admin full access promotions" on public.promotions for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+drop policy if exists "Admin manage promotions" on public.promotions;
+create policy "Admin manage promotions" on public.promotions
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
 
 drop policy if exists "Admin full access event banners" on public.event_banners;
-create policy "Admin full access event banners" on public.event_banners for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+drop policy if exists "Admin manage event banners" on public.event_banners;
+create policy "Admin manage event banners" on public.event_banners
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
 
 drop policy if exists "Admin full access gallery" on public.gallery_items;
-create policy "Admin full access gallery" on public.gallery_items for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+drop policy if exists "Admin manage gallery" on public.gallery_items;
+create policy "Admin manage gallery" on public.gallery_items
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
 
 drop policy if exists "Admin full access reservations" on public.reservations;
-create policy "Admin full access reservations" on public.reservations for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+drop policy if exists "Staff manage reservations" on public.reservations;
+create policy "Staff manage reservations" on public.reservations
+for all to authenticated
+using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 drop policy if exists "Admin full access settings" on public.site_settings;
-create policy "Admin full access settings" on public.site_settings for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+drop policy if exists "Admin manage settings" on public.site_settings;
+create policy "Admin manage settings" on public.site_settings
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
 
 insert into public.site_settings (id, hero_title, hero_subtitle, about_text, address, phone, email, opening_hours)
 values (
@@ -218,6 +287,20 @@ on storage.objects for select
 using (bucket_id = 'cava-assets');
 
 drop policy if exists "Authenticated can upload cava assets" on storage.objects;
-create policy "Authenticated can upload cava assets"
+drop policy if exists "Admin can upload cava assets" on storage.objects;
+create policy "Admin can upload cava assets"
 on storage.objects for insert
-with check (bucket_id = 'cava-assets' and auth.role() = 'authenticated');
+to authenticated
+with check (bucket_id = 'cava-assets' and public.is_app_admin());
+
+drop policy if exists "Admin can update cava assets" on storage.objects;
+create policy "Admin can update cava assets"
+on storage.objects for update
+to authenticated
+using (bucket_id = 'cava-assets' and public.is_app_admin());
+
+drop policy if exists "Admin can delete cava assets" on storage.objects;
+create policy "Admin can delete cava assets"
+on storage.objects for delete
+to authenticated
+using (bucket_id = 'cava-assets' and public.is_app_admin());

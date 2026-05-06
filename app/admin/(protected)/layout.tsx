@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CalendarHeart, LayoutDashboard, UtensilsCrossed, Images, Settings } from "lucide-react";
+import { CalendarHeart, LayoutDashboard, UtensilsCrossed, Images, Settings, Users } from "lucide-react";
+import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
 import { createClient } from "@/lib/supabase/server";
 
-const nav = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/menu", label: "Productos", icon: UtensilsCrossed },
-  { href: "/admin/eventos", label: "Eventos", icon: CalendarHeart },
-  { href: "/admin/galeria", label: "Galeria", icon: Images },
-  { href: "/admin/configuracion", label: "Configuracion", icon: Settings },
-];
+const navItems = [
+  { href: "/admin", label: "Reservas", icon: LayoutDashboard, adminOnly: false },
+  { href: "/admin/menu", label: "Productos", icon: UtensilsCrossed, adminOnly: true },
+  { href: "/admin/eventos", label: "Eventos", icon: CalendarHeart, adminOnly: true },
+  { href: "/admin/galeria", label: "Galeria", icon: Images, adminOnly: true },
+  { href: "/admin/configuracion", label: "Configuracion", icon: Settings, adminOnly: true },
+  { href: "/admin/usuarios", label: "Usuarios", icon: Users, adminOnly: true },
+] as const;
 
 export default async function ProtectedAdminLayout({
   children,
@@ -20,11 +22,20 @@ export default async function ProtectedAdminLayout({
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/admin/login");
 
+  const session = await getSessionRole();
+  const showAdminNav = session && isAdminRole(session.role);
+  const nav = navItems.filter((item) => !item.adminOnly || showAdminNav);
+
   return (
     <div className="admin-shell min-h-screen bg-[var(--admin-bg)] text-[var(--admin-foreground)]">
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:grid-cols-[260px_1fr]">
         <aside className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar)] p-4 shadow-sm">
-          <p className="section-title mb-6 text-3xl tracking-[0.2em] text-[var(--admin-brand)]">CAVA</p>
+          <p className="section-title mb-2 text-3xl tracking-[0.2em] text-[var(--admin-brand)]">CAVA</p>
+          {session && (
+            <p className="mb-4 text-xs font-medium text-[var(--admin-muted)]">
+              {isAdminRole(session.role) ? "Administrador" : "Supervisor"}
+            </p>
+          )}
           <nav className="space-y-1">
             {nav.map((item) => {
               const Icon = item.icon;

@@ -139,6 +139,19 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["reservations"]["Insert"]>;
       };
+      user_profiles: {
+        Row: {
+          user_id: string;
+          role: "admin" | "supervisor";
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          role: "admin" | "supervisor";
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_profiles"]["Insert"]>;
+      };
       site_settings: {
         Row: {
           id: number;

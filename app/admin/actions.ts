@@ -1,9 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
 import { createClient } from "@/lib/supabase/server";
 
+async function ensureAdmin() {
+  const session = await getSessionRole();
+  if (!session || !isAdminRole(session.role)) {
+    redirect("/admin");
+  }
+}
+
 export async function createCategory(formData: FormData) {
+  await ensureAdmin();
   const supabase = createClient();
   await supabase.from("menu_categories").insert({
     name: String(formData.get("name")),
@@ -14,6 +24,7 @@ export async function createCategory(formData: FormData) {
 }
 
 export async function createPromotion(formData: FormData) {
+  await ensureAdmin();
   const supabase = createClient();
   await supabase.from("promotions").insert({
     title: String(formData.get("title")),
@@ -25,6 +36,7 @@ export async function createPromotion(formData: FormData) {
 }
 
 export async function createMenuItem(formData: FormData) {
+  await ensureAdmin();
   const supabase = createClient();
   await supabase.from("menu_items").insert({
     category_id: String(formData.get("category_id")),
@@ -38,6 +50,7 @@ export async function createMenuItem(formData: FormData) {
 }
 
 export async function createGalleryItem(formData: FormData) {
+  await ensureAdmin();
   const supabase = createClient();
   await supabase.from("gallery_items").insert({
     title: String(formData.get("title")),
@@ -49,6 +62,7 @@ export async function createGalleryItem(formData: FormData) {
 }
 
 export async function updateSettings(formData: FormData) {
+  await ensureAdmin();
   const supabase = createClient();
   await supabase.from("site_settings").upsert(
     {
