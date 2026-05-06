@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { sendEmailWithTemplate } from "@/lib/email";
+import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
   const payload = await req.json();
+  const guests = Number(payload.guests);
+  if (!Number.isFinite(guests) || guests < 1 || guests > MAX_GUESTS_PER_RESERVATION) {
+    return NextResponse.json(
+      { error: `El numero de personas debe estar entre 1 y ${MAX_GUESTS_PER_RESERVATION}.` },
+      { status: 400 },
+    );
+  }
+
   const supabase = createClient();
 
   const { error } = await supabase.from("reservations").insert({
@@ -12,7 +21,9 @@ export async function POST(req: Request) {
     phone: payload.phone,
     reservation_date: payload.reservation_date,
     reservation_time: payload.reservation_time,
-    guests: payload.guests,
+    guests,
+    mesa: null,
+    source: "web",
     notes: payload.notes ?? null,
   } as never);
 

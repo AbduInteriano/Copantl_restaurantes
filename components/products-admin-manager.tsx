@@ -22,17 +22,17 @@ export function ProductsAdminManager({ categories }: Props) {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-4 rounded-xl border bg-[var(--admin-card)] p-5">
-        <h2 className="section-title text-3xl">Bebidas</h2>
+      <section className="space-y-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-sm">
+        <h2 className="section-title text-3xl text-[var(--admin-foreground)]">Bebidas</h2>
         <div className="flex flex-wrap gap-2">
           {beverageFamilies.map((family) => (
             <button
               key={family}
               onClick={() => setSelectedFamily(family)}
-              className={`rounded-md border px-3 py-2 text-sm ${
+              className={`rounded-md border px-3 py-2 text-sm font-medium ${
                 selectedFamily === family
-                  ? "border-[var(--admin-accent)] bg-[var(--admin-accent)]/20"
-                  : "border-[var(--border)]"
+                  ? "border-[var(--admin-accent)] bg-blue-50 text-[var(--admin-accent)]"
+                  : "border-[var(--admin-border)] bg-white text-[var(--admin-foreground)] hover:bg-slate-50"
               }`}
             >
               {family}
@@ -97,15 +97,18 @@ function CategoryCard({ category }: { category: Category }) {
   }
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
-      <p className="text-xl text-[var(--admin-accent)]">{category.name}</p>
+    <div className="space-y-3 rounded-lg border border-[var(--admin-border)] bg-slate-50/40 p-4">
+      <p className="text-xl font-semibold text-[var(--admin-foreground)]">{category.name}</p>
       <form onSubmit={addProduct} className="grid gap-2 md:grid-cols-6">
         <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Producto" required />
         <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Marca" required />
         <input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Descripcion" />
         <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="rounded-md border bg-transparent p-2" placeholder="Precio" required />
         <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-transparent p-2" required />
-        <button disabled={saving} className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-black">
+        <button
+          disabled={saving}
+          className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+        >
           {saving ? "Guardando..." : "Agregar"}
         </button>
       </form>
@@ -174,7 +177,7 @@ function EditableProductRow({
   }
 
   return (
-    <div className="space-y-2 rounded-md border p-3">
+    <div className="space-y-2 rounded-md border border-[var(--admin-border)] bg-white p-3 shadow-sm">
       <div className="grid gap-2 md:grid-cols-5">
         <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border bg-transparent p-2" />
         <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-transparent p-2" />
@@ -184,7 +187,11 @@ function EditableProductRow({
       </div>
       <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
         <p className="text-xs text-[var(--foreground-muted)]">Moneda: L. {Number(price).toFixed(2)}</p>
-        <button onClick={saveChanges} disabled={saving} className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-black">
+        <button
+          onClick={saveChanges}
+          disabled={saving}
+          className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+        >
           {saving ? "Guardando..." : "Aplicar cambios"}
         </button>
       </div>

@@ -117,6 +117,8 @@ export type Database = {
           reservation_date: string;
           reservation_time: string;
           guests: number;
+          mesa: number | null;
+          source: "web" | "manual";
           notes: string | null;
           status: "pendiente" | "confirmada" | "cancelada";
           created_at: string;
@@ -129,6 +131,8 @@ export type Database = {
           reservation_date: string;
           reservation_time: string;
           guests: number;
+          mesa?: number | null;
+          source?: "web" | "manual";
           notes?: string | null;
           status?: "pendiente" | "confirmada" | "cancelada";
           created_at?: string;

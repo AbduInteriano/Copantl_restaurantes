@@ -10,7 +10,7 @@ export default async function ConfiguracionPage() {
   return (
     <div className="space-y-6">
       <h1 className="section-title text-4xl">Configuracion del Sitio</h1>
-      <form action={updateSettings} className="space-y-4 rounded-xl border bg-[var(--admin-card)] p-5">
+      <form action={updateSettings} className="space-y-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-sm">
         <input name="hero_title" defaultValue={settings.hero_title} className="w-full rounded-md border bg-transparent p-3" placeholder="Titulo Hero" />
         <input name="hero_subtitle" defaultValue={settings.hero_subtitle} className="w-full rounded-md border bg-transparent p-3" placeholder="Subtitulo Hero" />
         <input name="logo_url" defaultValue={settings.logo_url ?? ""} className="w-full rounded-md border bg-transparent p-3" placeholder="URL del logo (aparece encima de CAVA)" />
@@ -22,7 +22,9 @@ export default async function ConfiguracionPage() {
         <input name="address" defaultValue={settings.address} className="w-full rounded-md border bg-transparent p-3" placeholder="Direccion" />
         <input name="phone" defaultValue={settings.phone} className="w-full rounded-md border bg-transparent p-3" placeholder="Telefono" />
         <input name="email" defaultValue={settings.email} className="w-full rounded-md border bg-transparent p-3" placeholder="Correo" />
-        <button className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-black">Guardar cambios</button>
+        <button className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-white shadow-sm hover:opacity-95">
+          Guardar cambios
+        </button>
       </form>
     </div>
   );

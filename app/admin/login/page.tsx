@@ -30,14 +30,20 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--admin-bg)] px-6">
-      <form onSubmit={onSubmit} className="w-full max-w-md rounded-xl border bg-[var(--admin-card)] p-6">
-        <h1 className="section-title text-3xl text-[var(--admin-accent)]">Acceso Administrador</h1>
+    <main className="admin-shell flex min-h-screen items-center justify-center bg-[var(--admin-bg)] px-6">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-md rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-6 shadow-sm"
+      >
+        <h1 className="section-title text-3xl text-[var(--admin-foreground)]">Acceso Administrador</h1>
         <p className="mt-2 text-sm text-[var(--foreground-muted)]">Ingresa tus credenciales de Supabase Auth.</p>
         <div className="mt-6 space-y-4">
           <input className="w-full rounded-md border bg-transparent p-3" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo" required />
           <input className="w-full rounded-md border bg-transparent p-3" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Contrasena" required />
-          <button disabled={loading} className="w-full rounded-md bg-[var(--admin-accent)] px-3 py-3 font-medium text-black">
+          <button
+            disabled={loading}
+            className="w-full rounded-md bg-[var(--admin-accent)] px-3 py-3 font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+          >
             {loading ? "Ingresando..." : "Entrar"}
           </button>
           {error && <p className="text-sm text-[var(--admin-danger)]">{error}</p>}

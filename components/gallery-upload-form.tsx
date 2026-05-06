@@ -49,11 +49,14 @@ export function GalleryUploadForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 rounded-xl border bg-[var(--admin-card)] p-5">
+    <form onSubmit={onSubmit} className="space-y-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-sm">
       <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-md border bg-transparent p-3" placeholder="Titulo de imagen" required />
       <input value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value))} type="number" className="w-full rounded-md border bg-transparent p-3" placeholder="Orden" />
       <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full rounded-md border bg-transparent p-3" required />
-      <button disabled={loading} className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-black">
+      <button
+        disabled={loading}
+        className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+      >
         {loading ? "Subiendo..." : "Subir a Supabase Storage"}
       </button>
       {status && <p className="text-sm text-[var(--foreground-muted)]">{status}</p>}

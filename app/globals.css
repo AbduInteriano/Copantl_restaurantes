@@ -9,12 +9,46 @@
   --foreground: #f5f0e8;
   --foreground-muted: #baac9b;
   --border: #3a2329;
-  --admin-bg: #111111;
-  --admin-sidebar: #0d0d0d;
-  --admin-card: #1c1c1c;
-  --admin-accent: #660e1a;
-  --admin-danger: #c0392b;
-  --admin-success: #27ae60;
+  /* Admin: paleta neutra y alto contraste (el sitio público sigue con vino #660e1a) */
+  --admin-brand: #660e1a;
+  --admin-bg: #f1f5f9;
+  --admin-sidebar: #ffffff;
+  --admin-card: #ffffff;
+  --admin-accent: #1d4ed8;
+  --admin-foreground: #0f172a;
+  --admin-muted: #475569;
+  --admin-border: #cbd5e1;
+  --admin-input-bg: #ffffff;
+  --admin-danger: #b45309;
+  --admin-danger-bg: #fff7ed;
+  --admin-success: #15803d;
+  --admin-success-contrast: #f0fdf4;
+}
+
+/* Dentro del panel admin, texto y bordes legibles sin depender del tema público */
+.admin-shell {
+  --foreground: var(--admin-foreground);
+  --foreground-muted: var(--admin-muted);
+  --border: var(--admin-border);
+}
+
+.admin-shell input:not([type="checkbox"]):not([type="radio"]),
+.admin-shell select,
+.admin-shell textarea {
+  color: var(--admin-foreground);
+  background-color: var(--admin-input-bg);
+  border-color: var(--admin-border);
+}
+
+.admin-shell input[type="file"] {
+  color: var(--admin-foreground);
+  border-color: var(--admin-border);
+  background-color: var(--admin-input-bg);
+}
+
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder {
+  color: #94a3b8;
 }
 
 @theme inline {

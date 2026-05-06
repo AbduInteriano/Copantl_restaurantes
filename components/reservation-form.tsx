@@ -60,7 +60,7 @@ export function ReservationForm() {
         <input className="rounded-md border bg-transparent p-3" placeholder="Nombre completo" {...register("full_name", { required: true })} />
         <input className="rounded-md border bg-transparent p-3" type="email" placeholder="Correo electronico" {...register("email", { required: true })} />
         <input className="rounded-md border bg-transparent p-3" placeholder="Telefono" {...register("phone", { required: true })} />
-        <input className="rounded-md border bg-transparent p-3" type="number" min={1} max={20} placeholder="Numero de personas" {...register("guests", { required: true, valueAsNumber: true })} />
+        <input className="rounded-md border bg-transparent p-3" type="number" min={1} max={10} placeholder="Numero de personas (max. 10)" {...register("guests", { required: true, valueAsNumber: true })} />
         <input className="rounded-md border bg-transparent p-3" type="date" {...register("reservation_date", { required: true })} />
         <input className="rounded-md border bg-transparent p-3" type="time" {...register("reservation_time", { required: true })} />
       </div>

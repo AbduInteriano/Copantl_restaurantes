@@ -100,14 +100,41 @@ create table if not exists public.reservations (
   phone text not null,
   reservation_date date not null,
   reservation_time time not null,
-  guests int not null check (guests > 0),
+  guests int not null check (guests >= 1 and guests <= 10),
+  mesa int,
+  source text not null default 'web' check (source in ('web', 'manual')),
   notes text,
   status reservation_status not null default 'pendiente',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint reservations_mesa_range check (mesa is null or (mesa >= 1 and mesa <= 10))
 );
 
 alter table public.gallery_items alter column title drop not null;
 alter table public.reservations drop column if exists selected_product;
+
+alter table public.reservations add column if not exists mesa int;
+alter table public.reservations add column if not exists source text not null default 'web';
+
+alter table public.reservations drop constraint if exists reservations_guests_check;
+alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 10);
+
+do $$
+begin
+  alter table public.reservations add constraint reservations_mesa_range check (mesa is null or (mesa >= 1 and mesa <= 10));
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter table public.reservations add constraint reservations_source_check check (source in ('web', 'manual'));
+exception
+  when duplicate_object then null;
+end $$;
+
+create unique index if not exists reservations_confirmada_mesa_slot_uidx
+on public.reservations (reservation_date, reservation_time, mesa)
+where status = 'confirmada' and mesa is not null;
 
 alter table public.site_settings enable row level security;
 alter table public.menu_categories enable row level security;
