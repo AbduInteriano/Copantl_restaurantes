@@ -147,9 +147,12 @@ function EditableProductRow({
   const [price, setPrice] = useState<number>(Number(item.price));
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function saveChanges() {
     setSaving(true);
+    setErrorMessage("");
     try {
       let imageUrl = item.image_url;
       if (file) {
@@ -170,9 +173,48 @@ function EditableProductRow({
           image_url: imageUrl,
         } as never)
         .eq("id", item.id);
-      if (!error) router.refresh();
+      if (error) {
+        setErrorMessage("No se pudo actualizar el producto.");
+      } else {
+        router.refresh();
+      }
     } finally {
       setSaving(false);
+    }
+  }
+
+  function getStoragePathFromPublicUrl(url: string | null): string | null {
+    if (!url) return null;
+    const marker = "/storage/v1/object/public/cava-assets/";
+    const index = url.indexOf(marker);
+    if (index === -1) return null;
+    const path = url.slice(index + marker.length);
+    return path ? decodeURIComponent(path) : null;
+  }
+
+  async function deleteProduct() {
+    const confirmed = window.confirm(`¿Eliminar "${name}"? Esta accion no se puede deshacer.`);
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setErrorMessage("");
+    try {
+      const storagePath = getStoragePathFromPublicUrl(item.image_url);
+
+      const { error: deleteError } = await supabase.from("menu_items").delete().eq("id", item.id);
+      if (deleteError) {
+        setErrorMessage("No se pudo eliminar el producto.");
+        return;
+      }
+
+      if (storagePath) {
+        // Intento de limpieza de archivo. Si falla, no se revierte la eliminacion del producto.
+        await supabase.storage.from("cava-assets").remove([storagePath]);
+      }
+
+      router.refresh();
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -187,14 +229,24 @@ function EditableProductRow({
       </div>
       <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
         <p className="text-xs text-[var(--foreground-muted)]">Moneda: L. {Number(price).toFixed(2)}</p>
-        <button
-          onClick={saveChanges}
-          disabled={saving}
-          className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
-        >
-          {saving ? "Guardando..." : "Aplicar cambios"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={saveChanges}
+            disabled={saving || deleting}
+            className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+          >
+            {saving ? "Guardando..." : "Aplicar cambios"}
+          </button>
+          <button
+            onClick={deleteProduct}
+            disabled={saving || deleting}
+            className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-100 disabled:opacity-60"
+          >
+            {deleting ? "Eliminando..." : "Eliminar producto"}
+          </button>
+        </div>
       </div>
+      {errorMessage ? <p className="text-xs text-red-600">{errorMessage}</p> : null}
     </div>
   );
 }
