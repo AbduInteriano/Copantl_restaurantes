@@ -80,6 +80,8 @@ export function ReservationBookingForm({
 
   const inputClass = `rounded-md border border-[var(--border)] bg-[var(--background)]/80 ${inputPad} text-[var(--foreground)] placeholder:text-[var(--foreground-muted)]/70 outline-none transition focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/35`;
 
+  const dateTimeInputClass = `reservation-datetime-input rounded-md border-2 border-[var(--foreground-muted)]/45 bg-[var(--surface)] ${inputPad} min-h-[48px] w-full text-[var(--foreground)] outline-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition [color-scheme:dark] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[var(--accent-gold)]/30 sm:min-h-[52px]`;
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className={`space-y-4 ${className}`}>
       <div className={`grid ${gridGap} md:grid-cols-2`}>
@@ -94,8 +96,18 @@ export function ReservationBookingForm({
           placeholder="Numero de personas (max. 10)"
           {...register("guests", { required: true, valueAsNumber: true })}
         />
-        <input className={inputClass} type="date" {...register("reservation_date", { required: true })} />
-        <input className={inputClass} type="time" {...register("reservation_time", { required: true })} />
+        <input
+          className={dateTimeInputClass}
+          type="date"
+          aria-label="Fecha de la reserva"
+          {...register("reservation_date", { required: true })}
+        />
+        <input
+          className={dateTimeInputClass}
+          type="time"
+          aria-label="Hora de la reserva"
+          {...register("reservation_time", { required: true })}
+        />
       </div>
       <textarea
         className={`min-h-24 w-full ${inputClass}`}

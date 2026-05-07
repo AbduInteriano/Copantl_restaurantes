@@ -94,6 +94,17 @@ body {
   background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
 }
 
+/* Fecha/hora en formulario de reserva: caja e icono visibles en movil y tema oscuro */
+.reservation-datetime-input {
+  color-scheme: dark;
+}
+
+.reservation-datetime-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+  filter: invert(1);
+}
+
 /*
  * Hero: brillo solo en titulo (brand-logo.tsx BRAND_HERO_SHINE_ENABLED).
  * El logo no lleva sombra ni marco; solo imagen + texto.
