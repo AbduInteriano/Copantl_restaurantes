@@ -1,5 +1,6 @@
 "use client";
 
+import { FLOATING_FAB_BUTTON_CLASS } from "@/components/floating-fab-classes";
 import { ReservationBookingForm } from "@/components/reservation-form";
 import { CalendarHeart, ChevronLeft, ChevronRight, X, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -12,11 +13,13 @@ type EventItem = {
 
 type Props = {
   items: EventItem[];
+  /** Sin posición fixed; para usar dentro de FloatingCornerActions */
+  embedded?: boolean;
 };
 
 type SheetView = "events" | "reserve" | "success";
 
-export function FloatingEventsButton({ items }: Props) {
+export function FloatingEventsButton({ items, embedded }: Props) {
   const [open, setOpen] = useState(false);
   const [sheetView, setSheetView] = useState<SheetView>("events");
   const [reserveKey, setReserveKey] = useState(0);
@@ -57,7 +60,7 @@ export function FloatingEventsButton({ items }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-[var(--accent-gold)]/55 bg-[var(--surface)]/95 px-4 py-3 text-sm font-medium text-[var(--accent-gold)] shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:scale-[1.03] hover:border-[var(--accent-gold)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.55)] sm:bottom-7 sm:right-7 sm:px-5 sm:py-3.5"
+        className={`${FLOATING_FAB_BUTTON_CLASS} ${embedded ? "" : "fixed bottom-5 right-5 z-40 sm:bottom-7 sm:right-7"}`}
         aria-label="Ver eventos"
       >
         <CalendarHeart size={20} className="shrink-0" />

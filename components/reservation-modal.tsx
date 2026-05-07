@@ -14,7 +14,8 @@ const termsText =
 
 export function ReservationModal({
   triggerLabel = "Reserva Ahora",
-  triggerClassName = "rounded-md border border-[var(--accent-gold)] px-6 py-3 text-[var(--accent-gold)] transition hover:bg-[var(--accent-gold)] hover:text-black",
+  triggerClassName =
+    "inline-flex min-h-[48px] touch-manipulation items-center justify-center rounded-xl bg-[var(--accent-gold)] px-6 py-3.5 text-base font-semibold text-white shadow-[0_6px_28px_rgba(102,14,26,0.55)] ring-2 ring-white/15 transition hover:brightness-110 active:scale-[0.99] sm:min-h-[52px] sm:text-lg",
 }: Props) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<"form" | "success">("form");

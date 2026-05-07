@@ -1,11 +1,12 @@
 import { BrandLogo } from "@/components/brand-logo";
 import { BeveragesCatalog } from "@/components/beverages-catalog";
 import { FadeIn } from "@/components/fade-in";
-import { FloatingEventsButton } from "@/components/floating-events-button";
+import { FloatingCornerActions } from "@/components/floating-corner-actions";
 import { ImageGridModal } from "@/components/image-grid-modal";
 import { ReservationModal } from "@/components/reservation-modal";
 import { SiteFooter } from "@/components/site-footer";
 import { fallbackSettings } from "@/lib/data";
+import { resolveSocialHrefs } from "@/lib/social-hrefs";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import { CalendarDays, MapPin, Wine } from "lucide-react";
@@ -42,15 +43,23 @@ export default async function Home() {
   const menuCategories = (categories ?? []) as CategoryWithItems[];
   const galleryItems = (gallery ?? []) as Database["public"]["Tables"]["gallery_items"]["Row"][];
   const eventItems = (events ?? []) as Database["public"]["Tables"]["event_banners"]["Row"][];
+  const socialHrefs = resolveSocialHrefs({
+    phone: site.phone,
+    instagramUrl: site.instagram_url,
+    facebookUrl: site.facebook_url,
+    tiktokUrl: site.tiktok_url,
+    whatsappUrl: site.whatsapp_url,
+  });
+
   return (
     <main className="grain-overlay overflow-x-hidden">
       <section className="mx-auto flex min-h-[72vh] w-full max-w-6xl flex-col items-center justify-center px-5 text-center sm:min-h-[78vh] sm:px-8 lg:px-6">
         <FadeIn>
           <BrandLogo logoUrl={site.logo_url} />
-          <div className="mt-10 inline-block">
+          <div className="mt-8 w-full max-w-sm px-1 sm:mt-10 sm:max-w-md">
             <ReservationModal
               triggerLabel="Reservar experiencia"
-              triggerClassName="rounded-md border border-[var(--accent-gold)] px-6 py-3 text-[var(--accent-gold)] transition hover:bg-[var(--accent-gold)] hover:text-black"
+              triggerClassName="inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl bg-[var(--accent-gold)] px-6 py-3.5 text-center text-base font-semibold leading-tight text-white shadow-[0_6px_28px_rgba(102,14,26,0.55)] ring-2 ring-white/15 transition hover:brightness-110 hover:shadow-[0_10px_36px_rgba(102,14,26,0.65)] active:scale-[0.99] sm:min-h-[52px] sm:px-8 sm:text-lg"
             />
           </div>
         </FadeIn>
@@ -95,7 +104,7 @@ export default async function Home() {
         tiktokUrl={site.tiktok_url}
         whatsappUrl={site.whatsapp_url}
       />
-      <FloatingEventsButton items={eventItems} />
+      <FloatingCornerActions items={eventItems} socialHrefs={socialHrefs} />
     </main>
   );
 }

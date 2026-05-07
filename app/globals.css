@@ -93,3 +93,31 @@ body {
   width: 100%;
   background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
 }
+
+/*
+ * Hero: brillo solo en titulo (brand-logo.tsx BRAND_HERO_SHINE_ENABLED).
+ * El logo no lleva sombra ni marco; solo imagen + texto.
+ */
+.brand-hero-shine-wrap .brand-hero-title-shine {
+  color: var(--accent-gold);
+  text-shadow:
+    0 0 26px rgba(255, 248, 242, 0.28),
+    0 2px 6px rgba(0, 0, 0, 0.92),
+    0 8px 36px rgba(102, 14, 26, 0.72);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-hero-shine-wrap .brand-hero-title-shine {
+    animation: brand-hero-title-glimmer 7s ease-in-out infinite;
+  }
+}
+
+@keyframes brand-hero-title-glimmer {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+}
