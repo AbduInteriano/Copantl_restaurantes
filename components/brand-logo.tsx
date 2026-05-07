@@ -22,7 +22,7 @@ export function BrandLogo({ logoUrl }: BrandLogoProps) {
       >
         CAVA
       </h1>
-      <p className="mt-2 text-xs tracking-[0.35em] text-[var(--foreground-muted)] md:text-sm">
+      <p className="mt-2 text-xs tracking-[0.35em] text-white md:text-sm">
         — DRINKS EXPERIENCE —
       </p>
     </div>
