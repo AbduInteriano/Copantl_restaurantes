@@ -35,6 +35,8 @@ export function ReservationBookingForm({
 }: ReservationBookingFormProps) {
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dateInputType, setDateInputType] = useState<"text" | "date">("text");
+  const [timeInputType, setTimeInputType] = useState<"text" | "time">("text");
   const { register, handleSubmit, reset } = useForm<ReservationValues>();
 
   const gridGap = compact ? "gap-2 sm:gap-3" : "gap-3 sm:gap-4";
@@ -66,6 +68,8 @@ export function ReservationBookingForm({
       }
 
       reset();
+      setDateInputType("text");
+      setTimeInputType("text");
       if (onSuccess) {
         onSuccess();
       } else {
@@ -81,6 +85,8 @@ export function ReservationBookingForm({
   const inputClass = `rounded-md border border-[var(--border)] bg-[var(--background)]/80 ${inputPad} text-[var(--foreground)] placeholder:text-[var(--foreground-muted)]/70 outline-none transition focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/35`;
 
   const dateTimeInputClass = `reservation-datetime-input rounded-md border-2 border-[var(--foreground-muted)]/45 bg-[var(--surface)] ${inputPad} min-h-[48px] w-full text-[var(--foreground)] outline-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition [color-scheme:dark] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[var(--accent-gold)]/30 sm:min-h-[52px]`;
+  const dateField = register("reservation_date", { required: true });
+  const timeField = register("reservation_time", { required: true });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className={`space-y-4 ${className}`}>
@@ -98,15 +104,29 @@ export function ReservationBookingForm({
         />
         <input
           className={dateTimeInputClass}
-          type="date"
+          type={dateInputType}
+          placeholder="Fecha"
+          inputMode="none"
           aria-label="Fecha de la reserva"
-          {...register("reservation_date", { required: true })}
+          {...dateField}
+          onFocus={() => setDateInputType("date")}
+          onBlur={(event) => {
+            dateField.onBlur(event);
+            if (!event.currentTarget.value) setDateInputType("text");
+          }}
         />
         <input
           className={dateTimeInputClass}
-          type="time"
+          type={timeInputType}
+          placeholder="Hora"
+          inputMode="none"
           aria-label="Hora de la reserva"
-          {...register("reservation_time", { required: true })}
+          {...timeField}
+          onFocus={() => setTimeInputType("time")}
+          onBlur={(event) => {
+            timeField.onBlur(event);
+            if (!event.currentTarget.value) setTimeInputType("text");
+          }}
         />
       </div>
       <textarea
