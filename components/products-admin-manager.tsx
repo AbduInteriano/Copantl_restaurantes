@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function ProductsAdminManager({ categories }: Props) {
-  const beverageFamilies = ["Vino", "Ron", "Whisky", "Ginebra", "Tequila"];
+  const beverageFamilies = ["Vino", "Ron", "Whisky", "Ginebra", "Tequila", "Cocteles"];
   const [selectedFamily, setSelectedFamily] = useState<string>("Vino");
   const selectedCategory = categories.find(
     (cat) => cat.name === selectedFamily || (selectedFamily === "Ginebra" && cat.name === "Gineba"),
@@ -59,26 +59,26 @@ function CategoryCard({ category }: { category: Category }) {
 
   async function addProduct(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) {
-      setMessage("Debes seleccionar una foto.");
-      return;
-    }
 
     setSaving(true);
     setMessage("");
     try {
-      const filePath = `products/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("cava-assets").upload(filePath, file);
-      if (uploadError) throw uploadError;
+      let imageUrl: string | null = null;
+      if (file) {
+        const filePath = `products/${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage.from("cava-assets").upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from("cava-assets").getPublicUrl(filePath);
+        imageUrl = data.publicUrl;
+      }
 
-      const { data } = supabase.storage.from("cava-assets").getPublicUrl(filePath);
       const { error: insertError } = await supabase.from("menu_items").insert({
         category_id: category.id,
         name,
         brand,
         description,
         price,
-        image_url: data.publicUrl,
+        image_url: imageUrl,
       } as never);
       if (insertError) throw insertError;
 
@@ -104,7 +104,7 @@ function CategoryCard({ category }: { category: Category }) {
         <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Marca" required />
         <input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Descripcion" />
         <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="rounded-md border bg-transparent p-2" placeholder="Precio" required />
-        <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-transparent p-2" required />
+        <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-transparent p-2" />
         <button
           disabled={saving}
           className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"

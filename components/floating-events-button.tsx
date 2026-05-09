@@ -2,6 +2,7 @@
 
 import { FLOATING_FAB_BUTTON_CLASS } from "@/components/floating-fab-classes";
 import { ReservationBookingForm } from "@/components/reservation-form";
+import { ReservationSuccessActions } from "@/components/reservation-success-actions";
 import { CalendarHeart, ChevronLeft, ChevronRight, X, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -13,13 +14,14 @@ type EventItem = {
 
 type Props = {
   items: EventItem[];
+  whatsappHref: string;
   /** Sin posición fixed; para usar dentro de FloatingCornerActions */
   embedded?: boolean;
 };
 
 type SheetView = "events" | "reserve" | "success";
 
-export function FloatingEventsButton({ items, embedded }: Props) {
+export function FloatingEventsButton({ items, whatsappHref, embedded }: Props) {
   const [open, setOpen] = useState(false);
   const [sheetView, setSheetView] = useState<SheetView>("events");
   const [reserveKey, setReserveKey] = useState(0);
@@ -164,13 +166,7 @@ export function FloatingEventsButton({ items, embedded }: Props) {
                     <p className="section-title text-xl tracking-wide sm:text-2xl">Reserva creada con exito</p>
                     <p className="text-[var(--foreground-muted)]">La reserva fue enviada pronto nos pondremos en contacto</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={closeAll}
-                    className="rounded-md border border-[var(--accent-gold)] px-8 py-3 text-sm font-medium text-[var(--accent-gold)] transition hover:bg-[var(--accent-gold)] hover:text-[var(--foreground)]"
-                  >
-                    Cerrar
-                  </button>
+                  <ReservationSuccessActions whatsappHref={whatsappHref} onClose={closeAll} />
                 </div>
               )}
             </div>

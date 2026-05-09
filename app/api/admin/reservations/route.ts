@@ -21,6 +21,8 @@ export async function POST(req: Request) {
   }
 
   const status = payload.status === "pendiente" ? "pendiente" : "confirmada";
+  const area =
+    payload.area === "terraza" || payload.area === "climatizado" ? payload.area : "climatizado";
   let mesa: number | null = payload.mesa != null && payload.mesa !== "" ? Number(payload.mesa) : null;
 
   if (status === "confirmada") {
@@ -42,6 +44,7 @@ export async function POST(req: Request) {
     reservation_time: payload.reservation_time,
     guests,
     mesa,
+    area,
     source: "manual",
     notes: payload.notes ? String(payload.notes) : null,
     status,

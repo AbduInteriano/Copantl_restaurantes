@@ -13,9 +13,12 @@ export async function POST(req: Request) {
     );
   }
 
+  const area =
+    payload.area === "terraza" || payload.area === "climatizado" ? payload.area : "climatizado";
+
   const supabase = createClient();
 
-  const { error } = await supabase.from("reservations").insert({
+  const rowWithArea = {
     full_name: payload.full_name,
     email: payload.email,
     phone: payload.phone,
@@ -23,9 +26,18 @@ export async function POST(req: Request) {
     reservation_time: payload.reservation_time,
     guests,
     mesa: null,
+    area,
     source: "web",
     notes: payload.notes ?? null,
-  } as never);
+  };
+
+  let { error } = await supabase.from("reservations").insert(rowWithArea as never);
+
+  // Si aun no migraste la columna `area` en Supabase, reintentar sin ese campo
+  if (error && /area|schema cache/i.test(error.message)) {
+    const { area: _omit, ...withoutArea } = rowWithArea;
+    ({ error } = await supabase.from("reservations").insert(withoutArea as never));
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -38,6 +50,7 @@ export async function POST(req: Request) {
     guests: payload.guests,
     reservation_date: payload.reservation_date,
     reservation_time: payload.reservation_time,
+    area: area === "terraza" ? "Terraza" : "Climatizado",
     notes: payload.notes ?? "",
     message:
       "Recibimos su solicitud de reservacion y pronto nos pondremos en contacto para confirmarla.",

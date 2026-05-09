@@ -8,6 +8,8 @@ import {
   MAX_GUESTS_PER_RESERVATION,
   MESA_COUNT,
   availableMesaList,
+  formatReservationArea,
+  hasReservationSlotConflict,
   normalizeTimeKey,
 } from "@/lib/reservations";
 
@@ -58,8 +60,12 @@ export function AdminReservationsDashboard({ reservations }: Props) {
     reservation_date: "",
     reservation_time: "",
     mesa: "",
-    guests: "",
   });
+
+  const editingReservation = useMemo(
+    () => (editId ? reservations.find((r) => r.id === editId) ?? null : null),
+    [editId, reservations],
+  );
 
   const manualFreeMesas = useMemo(() => {
     if (manualStatus !== "confirmada" || !manualDate || !manualTime) return [];
@@ -183,6 +189,8 @@ export function AdminReservationsDashboard({ reservations }: Props) {
     const fd = new FormData(e.currentTarget);
     const status = manualStatus;
     const mesaVal = fd.get("mesa");
+    const areaRaw = String(fd.get("area") || "climatizado");
+    const area = areaRaw === "terraza" ? "terraza" : "climatizado";
     const payload = {
       full_name: String(fd.get("full_name") || ""),
       email: String(fd.get("email") || ""),
@@ -192,6 +200,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       reservation_time: String(fd.get("reservation_time") || ""),
       mesa: mesaVal === "" || mesaVal == null ? null : Number(mesaVal),
       status,
+      area,
       notes: String(fd.get("notes") || ""),
     };
     if (status === "confirmada" && (payload.mesa == null || Number.isNaN(payload.mesa))) {
@@ -217,6 +226,19 @@ export function AdminReservationsDashboard({ reservations }: Props) {
   }
 
   async function saveEdit(id: string) {
+    if (
+      hasReservationSlotConflict(
+        reservations,
+        editForm.reservation_date,
+        editForm.reservation_time,
+        id,
+      )
+    ) {
+      const ok = window.confirm(
+        "Atencion: ya hay otra reserva activa en la misma fecha y hora. ¿Deseas guardar de todas formas?",
+      );
+      if (!ok) return;
+    }
     setLoadingId(id);
     setManualMsg("");
     const res = await fetch(`/api/reservations/${id}`, {
@@ -226,7 +248,6 @@ export function AdminReservationsDashboard({ reservations }: Props) {
         reservation_date: editForm.reservation_date,
         reservation_time: editForm.reservation_time,
         mesa: editForm.mesa === "" ? null : Number(editForm.mesa),
-        guests: editForm.guests === "" ? undefined : Number(editForm.guests),
       }),
     });
     setLoadingId(null);
@@ -245,7 +266,6 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       reservation_date: r.reservation_date,
       reservation_time: normalizeTimeKey(r.reservation_time),
       mesa: r.mesa != null ? String(r.mesa) : "",
-      guests: String(r.guests),
     });
   }
 
@@ -357,7 +377,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                       style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
                     />
                     <strong>Mesa {r.mesa}</strong> · {normalizeTimeKey(r.reservation_time)} · {r.full_name} · {r.guests}{" "}
-                    pers. · {r.source === "manual" ? "Manual" : "Web"}
+                    pers. · {formatReservationArea(r.area)} · {r.source === "manual" ? "Manual" : "Web"}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -386,8 +406,36 @@ export function AdminReservationsDashboard({ reservations }: Props) {
 
       {editId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-md rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-lg">
-            <h4 className="mb-3 font-semibold text-[var(--admin-foreground)]">Editar reserva confirmada</h4>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-lg">
+            <h4 className="mb-3 font-semibold text-[var(--admin-foreground)]">Reserva confirmada</h4>
+            {editingReservation ? (
+              <div className="mb-4 space-y-1.5 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-[var(--admin-foreground)]">
+                <p>
+                  <strong>Cliente:</strong> {editingReservation.full_name}
+                </p>
+                <p>
+                  <strong>Correo:</strong> {editingReservation.email}
+                </p>
+                <p>
+                  <strong>Telefono:</strong> {editingReservation.phone}
+                </p>
+                <p>
+                  <strong>Personas:</strong> {editingReservation.guests}
+                </p>
+                <p>
+                  <strong>Area:</strong> {formatReservationArea(editingReservation.area)}
+                </p>
+                <p>
+                  <strong>Origen:</strong> {editingReservation.source === "manual" ? "Manual" : "Web"}
+                </p>
+                <p>
+                  <strong>Notas:</strong> {editingReservation.notes?.trim() ? editingReservation.notes : "—"}
+                </p>
+              </div>
+            ) : null}
+            <p className="mb-3 text-xs font-medium text-[var(--admin-muted)]">
+              Solo puedes modificar fecha, hora y mesa.
+            </p>
             <div className="space-y-3">
               <label className="block text-xs text-[var(--foreground-muted)]">
                 Fecha
@@ -423,7 +471,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                     );
                     const cur = editForm.mesa ? Number(editForm.mesa) : null;
                     const opts = new Set(free);
-                    if (cur != null && cur >= 1 && cur <= 10) opts.add(cur);
+                    if (cur != null && cur >= 1 && cur <= MESA_COUNT) opts.add(cur);
                     return [...opts].sort((a, b) => a - b).map((n) => (
                       <option key={n} value={n}>
                         Mesa {n}
@@ -431,17 +479,6 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                     ));
                   })()}
                 </select>
-              </label>
-              <label className="block text-xs text-[var(--foreground-muted)]">
-                Personas
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_GUESTS_PER_RESERVATION}
-                  className="mt-1 w-full rounded-md border bg-transparent p-2"
-                  value={editForm.guests}
-                  onChange={(e) => setEditForm((f) => ({ ...f, guests: e.target.value }))}
-                />
               </label>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -502,6 +539,10 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               <input name="email" type="email" required className="rounded-md border bg-transparent p-3" placeholder="Correo" />
               <input name="phone" required className="rounded-md border bg-transparent p-3" placeholder="Telefono" />
               <input name="guests" type="number" min={1} max={MAX_GUESTS_PER_RESERVATION} defaultValue={2} required className="rounded-md border bg-transparent p-3" placeholder="Personas" />
+              <select name="area" className="rounded-md border bg-transparent p-3" defaultValue="climatizado">
+                <option value="climatizado">Area: Climatizado</option>
+                <option value="terraza">Area: Terraza</option>
+              </select>
               <input
                 name="reservation_date"
                 type="date"
@@ -624,13 +665,14 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               </label>
             </div>
             <div className="max-h-[min(420px,55vh)] overflow-auto rounded-lg border border-[var(--admin-border)]">
-              <table className="w-full min-w-[640px] border-collapse text-left text-xs sm:text-sm">
+              <table className="w-full min-w-[720px] border-collapse text-left text-xs sm:text-sm">
                 <thead className="sticky top-0 z-[1] bg-slate-100 text-[var(--admin-muted)]">
                   <tr>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Fecha</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Hora</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Cliente</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Pers.</th>
+                    <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Area</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Mesa</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Estado</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Origen</th>
@@ -640,7 +682,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                 <tbody>
                   {filteredActive.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-3 py-6 text-center text-[var(--foreground-muted)]">
+                      <td colSpan={9} className="px-3 py-6 text-center text-[var(--foreground-muted)]">
                         {activeOnlyCount === 0 && !includeCancelledInList
                           ? "No hay reservas activas."
                           : activeReservations.length === 0
@@ -657,6 +699,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                           {r.full_name}
                         </td>
                         <td className="px-2 py-2 sm:px-3">{r.guests}</td>
+                        <td className="whitespace-nowrap px-2 py-2 sm:px-3">{formatReservationArea(r.area)}</td>
                         <td className="px-2 py-2 sm:px-3">{r.mesa ?? "—"}</td>
                         <td className="whitespace-nowrap px-2 py-2 sm:px-3">
                           {r.status === "pendiente"
@@ -734,6 +777,7 @@ function PendingCard({
         <p><strong>Correo:</strong> {r.email}</p>
         <p><strong>Telefono:</strong> {r.phone}</p>
         <p><strong>Personas:</strong> {r.guests}</p>
+        <p><strong>Area:</strong> {formatReservationArea(r.area)}</p>
         <p><strong>Fecha:</strong> {r.reservation_date}</p>
         <p><strong>Hora:</strong> {normalizeTimeKey(r.reservation_time)}</p>
         <p><strong>Origen:</strong> {r.source === "manual" ? "Manual" : "Web"}</p>

@@ -100,7 +100,7 @@ create table if not exists public.reservations (
   phone text not null,
   reservation_date date not null,
   reservation_time time not null,
-  guests int not null check (guests >= 1 and guests <= 10),
+  guests int not null check (guests >= 1 and guests <= 20),
   mesa int,
   source text not null default 'web' check (source in ('web', 'manual')),
   notes text,
@@ -116,7 +116,7 @@ alter table public.reservations add column if not exists mesa int;
 alter table public.reservations add column if not exists source text not null default 'web';
 
 alter table public.reservations drop constraint if exists reservations_guests_check;
-alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 10);
+alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);
 
 do $$
 begin
@@ -278,7 +278,8 @@ values
   ('Ron', 'bebidas', 2),
   ('Whisky', 'bebidas', 3),
   ('Ginebra', 'bebidas', 4),
-  ('Tequila', 'bebidas', 5)
+  ('Tequila', 'bebidas', 5),
+  ('Cocteles', 'bebidas', 6)
 on conflict (name, product_type) do nothing;
 
 drop policy if exists "Public can read cava assets" on storage.objects;
@@ -304,3 +305,19 @@ create policy "Admin can delete cava assets"
 on storage.objects for delete
 to authenticated
 using (bucket_id = 'cava-assets' and public.is_app_admin());
+
+-- Reservas: area (Climatizado / Terraza) y hasta 20 personas (BD existente: ejecutar en Supabase SQL)
+alter table public.reservations add column if not exists area text;
+update public.reservations set area = 'climatizado' where area is null;
+alter table public.reservations alter column area set default 'climatizado';
+alter table public.reservations alter column area set not null;
+
+do $$
+begin
+  alter table public.reservations add constraint reservations_area_check check (area in ('climatizado', 'terraza'));
+exception
+  when duplicate_object then null;
+end $$;
+
+alter table public.reservations drop constraint if exists reservations_guests_check;
+alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);

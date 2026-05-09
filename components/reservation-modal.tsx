@@ -3,10 +3,12 @@
 import { CheckCircle2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ReservationBookingForm } from "@/components/reservation-form";
+import { ReservationSuccessActions } from "@/components/reservation-success-actions";
 
 type Props = {
   triggerLabel?: string;
   triggerClassName?: string;
+  whatsappHref: string;
 };
 
 const termsText =
@@ -16,6 +18,7 @@ export function ReservationModal({
   triggerLabel = "Reserva Ahora",
   triggerClassName =
     "inline-flex min-h-[48px] touch-manipulation items-center justify-center rounded-xl bg-[var(--accent-gold)] px-6 py-3.5 text-base font-semibold text-white shadow-[0_6px_28px_rgba(102,14,26,0.55)] ring-2 ring-white/15 transition hover:brightness-110 active:scale-[0.99] sm:min-h-[52px] sm:text-lg",
+  whatsappHref,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<"form" | "success">("form");
@@ -61,13 +64,7 @@ export function ReservationModal({
                       La reserva fue enviada pronto nos pondremos en contacto
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="rounded-md border border-[var(--accent-gold)] px-8 py-3 text-sm font-medium text-[var(--accent-gold)] transition hover:bg-[var(--accent-gold)] hover:text-[var(--foreground)]"
-                  >
-                    Cerrar
-                  </button>
+                  <ReservationSuccessActions whatsappHref={whatsappHref} onClose={() => setOpen(false)} />
                 </div>
               )}
             </div>

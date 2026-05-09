@@ -118,6 +118,8 @@ export type Database = {
           reservation_time: string;
           guests: number;
           mesa: number | null;
+          /** Preferencia de area (tras migracion SQL); puede faltar en filas antiguas */
+          area?: "climatizado" | "terraza" | null;
           source: "web" | "manual";
           notes: string | null;
           status: "pendiente" | "confirmada" | "cancelada";
@@ -132,6 +134,7 @@ export type Database = {
           reservation_time: string;
           guests: number;
           mesa?: number | null;
+          area?: "climatizado" | "terraza";
           source?: "web" | "manual";
           notes?: string | null;
           status?: "pendiente" | "confirmada" | "cancelada";

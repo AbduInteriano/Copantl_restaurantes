@@ -1,5 +1,13 @@
 export const MESA_COUNT = 10;
-export const MAX_GUESTS_PER_RESERVATION = 10;
+export const MAX_GUESTS_PER_RESERVATION = 20;
+
+export type ReservationAreaPreference = "climatizado" | "terraza";
+
+export function formatReservationArea(area: string | null | undefined): string {
+  if (area === "terraza") return "Terraza";
+  if (area === "climatizado") return "Climatizado";
+  return "—";
+}
 
 /** Normaliza hora de DB o input (ej. "20:00:00" -> "20:00") */
 export function normalizeTimeKey(time: string): string {
@@ -11,6 +19,28 @@ export function normalizeTimeKey(time: string): string {
 
 export function timesMatch(a: string, b: string): boolean {
   return normalizeTimeKey(a) === normalizeTimeKey(b);
+}
+
+/** Reservas activas (no canceladas) en el mismo slot fecha+hora. */
+export function hasReservationSlotConflict(
+  reservations: {
+    id: string;
+    reservation_date: string;
+    reservation_time: string;
+    status: string;
+  }[],
+  date: string,
+  time: string,
+  excludeReservationId?: string,
+): boolean {
+  for (const r of reservations) {
+    if (r.status === "cancelada") continue;
+    if (excludeReservationId && r.id === excludeReservationId) continue;
+    if (r.reservation_date !== date) continue;
+    if (!timesMatch(r.reservation_time, time)) continue;
+    return true;
+  }
+  return false;
 }
 
 export function occupiedMesas(

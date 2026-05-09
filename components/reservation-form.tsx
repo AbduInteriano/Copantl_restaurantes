@@ -11,6 +11,7 @@ export type ReservationValues = {
   guests: number;
   reservation_date: string;
   reservation_time: string;
+  area: "climatizado" | "terraza";
   notes?: string;
 };
 
@@ -37,7 +38,11 @@ export function ReservationBookingForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dateInputType, setDateInputType] = useState<"text" | "date">("text");
   const [timeInputType, setTimeInputType] = useState<"text" | "time">("text");
-  const { register, handleSubmit, reset } = useForm<ReservationValues>();
+  const { register, handleSubmit, reset } = useForm<ReservationValues>({
+    defaultValues: {
+      area: "climatizado",
+    },
+  });
 
   const gridGap = compact ? "gap-2 sm:gap-3" : "gap-3 sm:gap-4";
   const inputPad = compact ? "p-2.5 sm:p-3" : "p-3";
@@ -52,22 +57,35 @@ export function ReservationBookingForm({
         body: JSON.stringify(values),
       });
 
-      if (!response.ok) throw new Error("No se pudo crear la reserva");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const msg =
+          typeof data === "object" && data && "error" in data && typeof (data as { error: string }).error === "string"
+            ? (data as { error: string }).error
+            : "No se pudo crear la reserva.";
+        setStatus(msg);
+        return;
+      }
 
+      // La reserva ya quedo en la base; el correo por EmailJS es opcional
       if (
         process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID &&
         process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID &&
         process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY
       ) {
-        await emailjs.send(
-          process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
-          process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
-          values,
-          { publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY },
-        );
+        try {
+          await emailjs.send(
+            process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+            process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
+            values,
+            { publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY },
+          );
+        } catch {
+          // No bloquear exito si solo falla el envio del correo
+        }
       }
 
-      reset();
+      reset({ area: "climatizado" });
       setDateInputType("text");
       setTimeInputType("text");
       if (onSuccess) {
@@ -76,7 +94,7 @@ export function ReservationBookingForm({
         setStatus("Reserva enviada correctamente. Te confirmaremos pronto.");
       }
     } catch {
-      setStatus("Ocurrio un error al enviar tu reserva.");
+      setStatus("Ocurrio un error de red. Intenta de nuevo.");
     } finally {
       setIsSubmitting(false);
     }
@@ -98,10 +116,17 @@ export function ReservationBookingForm({
           className={inputClass}
           type="number"
           min={1}
-          max={10}
-          placeholder="Numero de personas (max. 10)"
+          max={20}
+          placeholder="Numero de personas (max. 20)"
           {...register("guests", { required: true, valueAsNumber: true })}
         />
+        <label className={`flex flex-col gap-1.5 md:col-span-2 ${compact ? "text-xs" : "text-sm"} text-[var(--foreground-muted)]`}>
+          <span className="font-medium text-[var(--foreground)]">Area</span>
+          <select className={inputClass} {...register("area", { required: true })}>
+            <option value="climatizado">Climatizado</option>
+            <option value="terraza">Terraza</option>
+          </select>
+        </label>
         <input
           className={dateTimeInputClass}
           type={dateInputType}

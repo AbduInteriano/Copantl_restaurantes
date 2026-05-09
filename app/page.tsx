@@ -58,6 +58,7 @@ export default async function Home() {
           <BrandLogo logoUrl={site.logo_url} />
           <div className="mt-8 w-full max-w-sm px-1 sm:mt-10 sm:max-w-md">
             <ReservationModal
+              whatsappHref={socialHrefs.whatsappHref}
               triggerLabel="Reservar experiencia"
               triggerClassName="inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl bg-[var(--accent-gold)] px-6 py-3.5 text-center text-base font-semibold leading-tight text-white shadow-[0_6px_28px_rgba(102,14,26,0.55)] ring-2 ring-white/15 transition hover:brightness-110 hover:shadow-[0_10px_36px_rgba(102,14,26,0.65)] active:scale-[0.99] sm:min-h-[52px] sm:px-8 sm:text-lg"
             />
