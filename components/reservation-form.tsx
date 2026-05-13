@@ -1,8 +1,9 @@
 "use client";
 
 import emailjs from "@emailjs/browser";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { formatReservationTimeSlotLabel, RESERVATION_TIME_SLOT_VALUES } from "@/lib/reservation-time-slots";
 
 export type ReservationValues = {
   full_name: string;
@@ -37,12 +38,21 @@ export function ReservationBookingForm({
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dateInputType, setDateInputType] = useState<"text" | "date">("text");
-  const [timeInputType, setTimeInputType] = useState<"text" | "time">("text");
   const { register, handleSubmit, reset } = useForm<ReservationValues>({
     defaultValues: {
       area: "climatizado",
+      reservation_time: "",
     },
   });
+
+  const timeOptions = useMemo(
+    () =>
+      RESERVATION_TIME_SLOT_VALUES.map((v) => ({
+        value: v,
+        label: formatReservationTimeSlotLabel(v),
+      })),
+    [],
+  );
 
   const gridGap = compact ? "gap-2 sm:gap-3" : "gap-3 sm:gap-4";
   const inputPad = compact ? "p-2.5 sm:p-3" : "p-3";
@@ -67,7 +77,6 @@ export function ReservationBookingForm({
         return;
       }
 
-      // La reserva ya quedo en la base; el correo por EmailJS es opcional
       if (
         process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID &&
         process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID &&
@@ -85,9 +94,8 @@ export function ReservationBookingForm({
         }
       }
 
-      reset({ area: "climatizado" });
+      reset({ area: "climatizado", reservation_time: "" });
       setDateInputType("text");
-      setTimeInputType("text");
       if (onSuccess) {
         onSuccess();
       } else {
@@ -104,7 +112,7 @@ export function ReservationBookingForm({
 
   const dateTimeInputClass = `reservation-datetime-input rounded-md border-2 border-[var(--foreground-muted)]/45 bg-[var(--surface)] ${inputPad} min-h-[48px] w-full text-[var(--foreground)] outline-none shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] transition [color-scheme:dark] focus:border-[var(--accent-gold)] focus:ring-2 focus:ring-[var(--accent-gold)]/30 sm:min-h-[52px]`;
   const dateField = register("reservation_date", { required: true });
-  const timeField = register("reservation_time", { required: true });
+  const timeRegister = register("reservation_time", { required: true });
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className={`space-y-4 ${className}`}>
@@ -140,19 +148,17 @@ export function ReservationBookingForm({
             if (!event.currentTarget.value) setDateInputType("text");
           }}
         />
-        <input
-          className={dateTimeInputClass}
-          type={timeInputType}
-          placeholder="Hora"
-          inputMode="none"
-          aria-label="Hora de la reserva"
-          {...timeField}
-          onFocus={() => setTimeInputType("time")}
-          onBlur={(event) => {
-            timeField.onBlur(event);
-            if (!event.currentTarget.value) setTimeInputType("text");
-          }}
-        />
+        <label className={`flex flex-col gap-1.5 ${compact ? "text-xs" : "text-sm"} text-[var(--foreground-muted)]`}>
+          <span className="font-medium text-[var(--foreground)]">Hora</span>
+          <select className={dateTimeInputClass} {...timeRegister}>
+            <option value="">Selecciona hora</option>
+            {timeOptions.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       <textarea
         className={`min-h-24 w-full ${inputClass}`}

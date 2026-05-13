@@ -321,3 +321,6 @@ end $$;
 
 alter table public.reservations drop constraint if exists reservations_guests_check;
 alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);
+
+-- Aviso en panel admin (Realtime): en Supabase, Database > Publications > supabase_realtime,
+-- agrega la tabla public.reservations si los INSERT no disparan el canal en el cliente.

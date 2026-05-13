@@ -61,6 +61,7 @@ function CategoryCard({ category }: { category: Category }) {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
+  const isCocteles = category.name === "Cocteles";
 
   async function deleteProductRow(item: MenuItem) {
     const confirmed = window.confirm(`¿Eliminar "${item.name}"? Esta accion no se puede deshacer.`);
@@ -103,7 +104,7 @@ function CategoryCard({ category }: { category: Category }) {
       const { error: insertError } = await supabase.from("menu_items").insert({
         category_id: category.id,
         name,
-        brand,
+        brand: isCocteles ? null : brand.trim() || null,
         description,
         price,
         image_url: imageUrl,
@@ -131,12 +132,16 @@ function CategoryCard({ category }: { category: Category }) {
   return (
     <div className="space-y-3 rounded-lg border border-[var(--admin-border)] bg-slate-50/40 p-4">
       <p className="text-xl font-semibold text-[var(--admin-foreground)]">{category.name}</p>
-      <form onSubmit={addProduct} className="grid gap-2 md:grid-cols-6">
+      <form onSubmit={addProduct} className={`grid gap-2 ${isCocteles ? "md:grid-cols-4" : "md:grid-cols-6"}`}>
         <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border bg-white p-2" placeholder="Producto" required />
-        <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-white p-2" placeholder="Marca" required />
+        {!isCocteles ? (
+          <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-white p-2" placeholder="Marca" required />
+        ) : null}
         <input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border bg-white p-2" placeholder="Descripcion" />
         <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="rounded-md border bg-white p-2" placeholder="Precio" required />
-        <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-white p-2" />
+        {!isCocteles ? (
+          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-white p-2" />
+        ) : null}
         <button
           type="submit"
           disabled={saving}
@@ -224,6 +229,7 @@ function CategoryCard({ category }: { category: Category }) {
       {editItem ? (
         <ProductEditModal
           item={editItem}
+          isCocteles={isCocteles}
           onClose={() => setEditItem(null)}
           onSaved={() => {
             setEditItem(null);
@@ -237,10 +243,12 @@ function CategoryCard({ category }: { category: Category }) {
 
 function ProductEditModal({
   item,
+  isCocteles,
   onClose,
   onSaved,
 }: {
   item: MenuItem;
+  isCocteles: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -280,7 +288,7 @@ function ProductEditModal({
         .from("menu_items")
         .update({
           name,
-          brand,
+          brand: isCocteles ? null : brand.trim() || null,
           description,
           price,
           image_url: imageUrl,
@@ -347,10 +355,12 @@ function ProductEditModal({
             Nombre
             <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
           </label>
-          <label className="text-xs text-[var(--admin-muted)]">
-            Marca
-            <input value={brand} onChange={(e) => setBrand(e.target.value)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
-          </label>
+          {!isCocteles ? (
+            <label className="text-xs text-[var(--admin-muted)]">
+              Marca
+              <input value={brand} onChange={(e) => setBrand(e.target.value)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
+            </label>
+          ) : null}
           <label className="text-xs text-[var(--admin-muted)]">
             Descripcion
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 min-h-20 w-full rounded-md border bg-white p-2 text-sm" />
@@ -359,10 +369,12 @@ function ProductEditModal({
             Precio (L.)
             <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
           </label>
-          <label className="text-xs text-[var(--admin-muted)]">
-            Nueva imagen (opcional)
-            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
-          </label>
+          {!isCocteles ? (
+            <label className="text-xs text-[var(--admin-muted)]">
+              Nueva imagen (opcional)
+              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
+            </label>
+          ) : null}
         </div>
         {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
         <div className="mt-5 flex flex-wrap gap-2">

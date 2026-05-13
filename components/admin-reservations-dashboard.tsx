@@ -13,6 +13,7 @@ import {
   hasReservationSlotConflict,
   normalizeTimeKey,
 } from "@/lib/reservations";
+import { formatReservationTimeSlotLabel, RESERVATION_TIME_SLOT_VALUES, snapReservationTimeToHalfHour } from "@/lib/reservation-time-slots";
 
 type Reservation = Database["public"]["Tables"]["reservations"]["Row"];
 
@@ -265,7 +266,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
     setEditId(r.id);
     setEditForm({
       reservation_date: r.reservation_date,
-      reservation_time: normalizeTimeKey(r.reservation_time),
+      reservation_time: snapReservationTimeToHalfHour(normalizeTimeKey(r.reservation_time)),
       mesa: r.mesa != null ? String(r.mesa) : "",
     });
   }
@@ -466,7 +467,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                   <strong>Personas:</strong> {editingReservation.guests}
                 </p>
                 <p>
-                  <strong>Area:</strong> {formatReservationArea(editingReservation.area)}
+                  <strong>Area:</strong> {formatReservationAreaLong(editingReservation.area)}
                 </p>
                 <p>
                   <strong>Origen:</strong> {editingReservation.source === "manual" ? "Manual" : "Web"}
@@ -490,13 +491,19 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                 />
               </label>
               <label className="block text-xs text-[var(--foreground-muted)]">
-                Hora
-                <input
-                  type="time"
+                Hora (cada 30 min)
+                <select
                   className="mt-1 w-full rounded-md border bg-transparent p-2"
                   value={editForm.reservation_time}
                   onChange={(e) => setEditForm((f) => ({ ...f, reservation_time: e.target.value }))}
-                />
+                >
+                  <option value="">Elija…</option>
+                  {RESERVATION_TIME_SLOT_VALUES.map((v) => (
+                    <option key={v} value={v}>
+                      {formatReservationTimeSlotLabel(v)}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="block text-xs text-[var(--foreground-muted)]">
                 Mesa
@@ -594,14 +601,23 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                 value={manualDate}
                 onChange={(e) => setManualDate(e.target.value)}
               />
-              <input
-                name="reservation_time"
-                type="time"
-                required
-                className="rounded-md border bg-transparent p-3"
-                value={manualTime}
-                onChange={(e) => setManualTime(e.target.value)}
-              />
+              <label className="block text-xs text-[var(--foreground-muted)] sm:col-span-2">
+                Hora (cada 30 min)
+                <select
+                  name="reservation_time"
+                  required
+                  className="mt-1 w-full rounded-md border bg-transparent p-3"
+                  value={manualTime}
+                  onChange={(e) => setManualTime(e.target.value)}
+                >
+                  <option value="">Elija hora…</option>
+                  {RESERVATION_TIME_SLOT_VALUES.map((v) => (
+                    <option key={v} value={v}>
+                      {formatReservationTimeSlotLabel(v)}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <select
                 className="rounded-md border bg-transparent p-3 sm:col-span-2"
                 value={manualStatus}

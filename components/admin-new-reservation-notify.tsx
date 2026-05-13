@@ -1,10 +1,11 @@
 "use client";
 
 import { Bell, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { MutableRefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const POLL_MS = 28_000;
+const POLL_MS = 8_000;
 
 function playSoftAlertTone() {
   try {
@@ -21,10 +22,25 @@ function playSoftAlertTone() {
     gain.connect(ctx.destination);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.35);
-    ctx.resume().catch(() => {});
+    void ctx.resume();
   } catch {
     /* ignore */
   }
+}
+
+function notifyNewPending(
+  id: string,
+  fullName: string,
+  knownIdsRef: MutableRefObject<Set<string> | null>,
+  setToast: (t: { id: string; name: string } | null) => void,
+) {
+  if (!knownIdsRef.current) {
+    knownIdsRef.current = new Set();
+  }
+  if (knownIdsRef.current.has(id)) return;
+  knownIdsRef.current.add(id);
+  setToast({ id, name: fullName });
+  playSoftAlertTone();
 }
 
 export function AdminNewReservationNotify() {
@@ -32,43 +48,63 @@ export function AdminNewReservationNotify() {
   const knownIdsRef = useRef<Set<string> | null>(null);
   const mountedRef = useRef(true);
 
-  const poll = useCallback(async () => {
+  useEffect(() => {
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("reservations")
-      .select("id, full_name, created_at")
-      .eq("status", "pendiente")
-      .order("created_at", { ascending: false })
-      .limit(40);
+    mountedRef.current = true;
 
-    if (error || !data || !mountedRef.current) return;
+    async function syncPendingIds(): Promise<void> {
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("id, full_name, created_at")
+        .eq("status", "pendiente")
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    const rows = data as { id: string; full_name: string; created_at: string }[];
-    const ids = new Set(rows.map((r) => r.id));
-    if (knownIdsRef.current === null) {
-      knownIdsRef.current = ids;
-      return;
-    }
+      if (error || !data || !mountedRef.current) return;
 
-    for (const row of rows) {
-      if (!knownIdsRef.current.has(row.id)) {
-        knownIdsRef.current.add(row.id);
-        setToast({ id: row.id, name: row.full_name });
-        playSoftAlertTone();
-        break;
+      const rows = data as { id: string; full_name: string; created_at: string }[];
+      const ids = new Set(rows.map((r) => r.id));
+      if (knownIdsRef.current === null) {
+        knownIdsRef.current = ids;
+        return;
+      }
+      for (const row of rows) {
+        if (!knownIdsRef.current.has(row.id)) {
+          notifyNewPending(row.id, row.full_name, knownIdsRef, setToast);
+          break;
+        }
       }
     }
-  }, []);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    void poll();
-    const t = window.setInterval(() => void poll(), POLL_MS);
+    void syncPendingIds();
+
+    const interval = window.setInterval(() => void syncPendingIds(), POLL_MS);
+
+    const channel = supabase
+      .channel("admin-pending-reservations")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "reservations" },
+        (payload) => {
+          const row = payload.new as { id?: string; full_name?: string; status?: string };
+          if (!row.id || !row.full_name) return;
+          if (row.status !== "pendiente") return;
+          if (!mountedRef.current) return;
+          notifyNewPending(row.id, row.full_name, knownIdsRef, setToast);
+        },
+      )
+      .subscribe();
+
+    const onFocus = () => void syncPendingIds();
+    window.addEventListener("focus", onFocus);
+
     return () => {
       mountedRef.current = false;
-      window.clearInterval(t);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      void supabase.removeChannel(channel);
     };
-  }, [poll]);
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
