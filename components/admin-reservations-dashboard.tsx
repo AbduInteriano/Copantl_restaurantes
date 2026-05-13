@@ -9,6 +9,7 @@ import {
   MESA_COUNT,
   availableMesaList,
   formatReservationArea,
+  formatReservationAreaLong,
   hasReservationSlotConflict,
   normalizeTimeKey,
 } from "@/lib/reservations";
@@ -365,37 +366,79 @@ export function AdminReservationsDashboard({ reservations }: Props) {
           {selectedDayReservations.length === 0 ? (
             <p className="text-sm text-[var(--foreground-muted)]">Sin reservas confirmadas este dia.</p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               {selectedDayReservations.map((r) => (
                 <li
                   key={r.id}
-                  className="flex flex-col gap-2 rounded-lg border border-[var(--admin-border)] bg-slate-50/50 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="rounded-lg border border-[var(--admin-border)] bg-slate-50/50 p-4 shadow-sm"
                 >
-                  <div className="text-sm">
-                    <span
-                      className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
-                      style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
-                    />
-                    <strong>Mesa {r.mesa}</strong> · {normalizeTimeKey(r.reservation_time)} · {r.full_name} · {r.guests}{" "}
-                    pers. · {formatReservationArea(r.area)} · {r.source === "manual" ? "Manual" : "Web"}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="rounded-md border border-[var(--admin-border)] bg-white px-3 py-1 text-xs text-[var(--admin-foreground)] hover:bg-slate-100"
-                      onClick={() => openEdit(r)}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-3 py-1 text-xs text-amber-900 hover:bg-amber-50 disabled:opacity-50"
-                      disabled={loadingId === r.id}
-                      onClick={() => deleteReservation(r.id, r.full_name)}
-                    >
-                      <Trash2 size={14} />
-                      Eliminar
-                    </button>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="grid flex-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                      <p className="sm:col-span-2">
+                        <span
+                          className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
+                          style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
+                        />
+                        <strong className="text-[var(--admin-foreground)]">{r.full_name}</strong>
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Correo:</span>{" "}
+                        <a className="text-[var(--admin-accent)] underline" href={`mailto:${r.email}`}>
+                          {r.email}
+                        </a>
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Telefono:</span>{" "}
+                        <a className="text-[var(--admin-accent)] underline" href={`tel:${r.phone}`}>
+                          {r.phone}
+                        </a>
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Fecha:</span> {r.reservation_date}
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Hora:</span> {normalizeTimeKey(r.reservation_time)}
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Personas:</span> {r.guests}
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Mesa:</span> {r.mesa ?? "—"}
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Area:</span> {formatReservationAreaLong(r.area)}
+                      </p>
+                      <p>
+                        <span className="text-[var(--foreground-muted)]">Origen:</span>{" "}
+                        {r.source === "manual" ? "Manual" : "Web"}
+                      </p>
+                      <p className="text-xs text-[var(--foreground-muted)] sm:col-span-2">
+                        Creada: {new Date(r.created_at).toLocaleString("es-HN", { dateStyle: "short", timeStyle: "short" })}
+                      </p>
+                      {r.notes?.trim() ? (
+                        <p className="sm:col-span-2">
+                          <span className="text-[var(--foreground-muted)]">Notas:</span> {r.notes}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="rounded-md border border-[var(--admin-border)] bg-white px-3 py-1.5 text-xs text-[var(--admin-foreground)] hover:bg-slate-100"
+                        onClick={() => openEdit(r)}
+                      >
+                        Editar fecha / hora / mesa
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-3 py-1.5 text-xs text-amber-900 hover:bg-amber-50 disabled:opacity-50"
+                        disabled={loadingId === r.id}
+                        onClick={() => deleteReservation(r.id, r.full_name)}
+                      >
+                        <Trash2 size={14} />
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}
@@ -777,7 +820,7 @@ function PendingCard({
         <p><strong>Correo:</strong> {r.email}</p>
         <p><strong>Telefono:</strong> {r.phone}</p>
         <p><strong>Personas:</strong> {r.guests}</p>
-        <p><strong>Area:</strong> {formatReservationArea(r.area)}</p>
+        <p><strong>Area:</strong> {formatReservationAreaLong(r.area)}</p>
         <p><strong>Fecha:</strong> {r.reservation_date}</p>
         <p><strong>Hora:</strong> {normalizeTimeKey(r.reservation_time)}</p>
         <p><strong>Origen:</strong> {r.source === "manual" ? "Manual" : "Web"}</p>

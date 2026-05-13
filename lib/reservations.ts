@@ -9,6 +9,13 @@ export function formatReservationArea(area: string | null | undefined): string {
   return "—";
 }
 
+/** Etiqueta larga para UI (pendientes / detalle). */
+export function formatReservationAreaLong(area: string | null | undefined): string {
+  if (area === "terraza") return "Terraza (exterior)";
+  if (area === "climatizado") return "Sala climatizada";
+  return "No especificado";
+}
+
 /** Normaliza hora de DB o input (ej. "20:00:00" -> "20:00") */
 export function normalizeTimeKey(time: string): string {
   if (!time) return "";

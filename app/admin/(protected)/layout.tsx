@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarHeart, LayoutDashboard, UtensilsCrossed, Images, Settings, Users } from "lucide-react";
 import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import { AdminNewReservationNotify } from "@/components/admin-new-reservation-notify";
 import { createClient } from "@/lib/supabase/server";
 
 const navItems = [
@@ -28,6 +29,7 @@ export default async function ProtectedAdminLayout({
 
   return (
     <div className="admin-shell min-h-screen bg-[var(--admin-bg)] text-[var(--admin-foreground)]">
+      <AdminNewReservationNotify />
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 md:grid-cols-[260px_1fr]">
         <aside className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-sidebar)] p-4 shadow-sm">
           <p className="section-title mb-2 text-3xl tracking-[0.2em] text-[var(--admin-brand)]">CAVA</p>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +13,8 @@ type Category = Database["public"]["Tables"]["menu_categories"]["Row"] & {
 type Props = {
   categories: Category[];
 };
+
+type MenuItem = Database["public"]["Tables"]["menu_items"]["Row"];
 
 export function ProductsAdminManager({ categories }: Props) {
   const beverageFamilies = ["Vino", "Ron", "Whisky", "Ginebra", "Tequila", "Cocteles"];
@@ -28,6 +31,7 @@ export function ProductsAdminManager({ categories }: Props) {
           {beverageFamilies.map((family) => (
             <button
               key={family}
+              type="button"
               onClick={() => setSelectedFamily(family)}
               className={`rounded-md border px-3 py-2 text-sm font-medium ${
                 selectedFamily === family
@@ -56,6 +60,30 @@ function CategoryCard({ category }: { category: Category }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [editItem, setEditItem] = useState<MenuItem | null>(null);
+
+  async function deleteProductRow(item: MenuItem) {
+    const confirmed = window.confirm(`¿Eliminar "${item.name}"? Esta accion no se puede deshacer.`);
+    if (!confirmed) return;
+    const storagePath = (() => {
+      const url = item.image_url;
+      if (!url) return null;
+      const marker = "/storage/v1/object/public/cava-assets/";
+      const index = url.indexOf(marker);
+      if (index === -1) return null;
+      const path = url.slice(index + marker.length);
+      return path ? decodeURIComponent(path) : null;
+    })();
+    const { error } = await supabase.from("menu_items").delete().eq("id", item.id);
+    if (error) {
+      setMessage("No se pudo eliminar el producto.");
+      return;
+    }
+    if (storagePath) {
+      await supabase.storage.from("cava-assets").remove([storagePath]);
+    }
+    router.refresh();
+  }
 
   async function addProduct(e: React.FormEvent) {
     e.preventDefault();
@@ -96,51 +124,127 @@ function CategoryCard({ category }: { category: Category }) {
     }
   }
 
+  const filtered = category.menu_items.filter((item) =>
+    `${item.name} ${item.brand ?? ""}`.toLowerCase().includes(search.toLowerCase()),
+  );
+
   return (
     <div className="space-y-3 rounded-lg border border-[var(--admin-border)] bg-slate-50/40 p-4">
       <p className="text-xl font-semibold text-[var(--admin-foreground)]">{category.name}</p>
       <form onSubmit={addProduct} className="grid gap-2 md:grid-cols-6">
-        <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Producto" required />
-        <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Marca" required />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border bg-transparent p-2" placeholder="Descripcion" />
-        <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="rounded-md border bg-transparent p-2" placeholder="Precio" required />
-        <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-transparent p-2" />
+        <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border bg-white p-2" placeholder="Producto" required />
+        <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-white p-2" placeholder="Marca" required />
+        <input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border bg-white p-2" placeholder="Descripcion" />
+        <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="rounded-md border bg-white p-2" placeholder="Precio" required />
+        <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-white p-2" />
         <button
+          type="submit"
           disabled={saving}
           className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
         >
           {saving ? "Guardando..." : "Agregar"}
         </button>
       </form>
-      {message && <p className="text-xs text-[var(--foreground-muted)]">{message}</p>}
+      {message ? <p className="text-xs text-[var(--foreground-muted)]">{message}</p> : null}
 
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full rounded-md border bg-transparent p-2 text-sm"
-        placeholder="Buscar producto por nombre o marca..."
+        className="w-full rounded-md border bg-white p-2 text-sm"
+        placeholder="Buscar por nombre o marca..."
       />
 
-      <div className="max-h-[55vh] space-y-2 overflow-auto pr-1">
-        {category.menu_items
-          .filter((item) =>
-            `${item.name} ${item.brand ?? ""}`.toLowerCase().includes(search.toLowerCase()),
-          )
-          .map((item) => (
-          <EditableProductRow key={item.id} item={item} />
-          ))}
+      <div className="max-h-[min(65vh,720px)] overflow-auto rounded-lg border border-[var(--admin-border)] bg-white">
+        <table className="w-full min-w-[640px] table-fixed border-collapse text-left text-xs sm:text-sm">
+          <thead className="sticky top-0 z-[1] border-b border-[var(--admin-border)] bg-slate-100 text-[var(--admin-muted)]">
+            <tr>
+              <th className="w-12 px-2 py-2 font-semibold sm:px-3">Img</th>
+              <th className="w-[22%] px-2 py-2 font-semibold sm:px-3">Producto</th>
+              <th className="w-[16%] px-2 py-2 font-semibold sm:px-3">Marca</th>
+              <th className="w-[30%] px-2 py-2 font-semibold sm:px-3">Descripcion</th>
+              <th className="w-24 px-2 py-2 font-semibold sm:px-3">Precio</th>
+              <th className="w-32 px-2 py-2 text-right font-semibold sm:px-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-[var(--foreground-muted)]">
+                  Sin productos en esta categoria.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((item) => (
+                <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/80">
+                  <td className="px-2 py-1.5 align-middle sm:px-3">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt="" className="h-9 w-9 rounded object-cover" />
+                    ) : (
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded border border-dashed border-slate-200 text-[10px] text-slate-400">
+                        —
+                      </span>
+                    )}
+                  </td>
+                  <td className="truncate px-2 py-1.5 font-medium text-[var(--admin-foreground)] sm:px-3" title={item.name}>
+                    {item.name}
+                  </td>
+                  <td className="truncate px-2 py-1.5 text-[var(--admin-muted)] sm:px-3" title={item.brand ?? ""}>
+                    {item.brand ?? "—"}
+                  </td>
+                  <td className="truncate px-2 py-1.5 text-[var(--admin-muted)] sm:px-3" title={item.description ?? ""}>
+                    {item.description?.trim() ? item.description : "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-1.5 tabular-nums sm:px-3">L. {Number(item.price).toFixed(2)}</td>
+                  <td className="px-2 py-1.5 text-right sm:px-3">
+                    <div className="flex flex-wrap justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditItem(item)}
+                        className="inline-flex items-center gap-0.5 rounded border border-[var(--admin-border)] bg-white px-2 py-1 text-[11px] font-medium hover:bg-slate-100 sm:text-xs"
+                      >
+                        <Pencil size={12} className="shrink-0" />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteProductRow(item)}
+                        className="inline-flex items-center gap-0.5 rounded border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-800 hover:bg-red-100 sm:text-xs"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {editItem ? (
+        <ProductEditModal
+          item={editItem}
+          onClose={() => setEditItem(null)}
+          onSaved={() => {
+            setEditItem(null);
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
-function EditableProductRow({
+function ProductEditModal({
   item,
+  onClose,
+  onSaved,
 }: {
-  item: Database["public"]["Tables"]["menu_items"]["Row"];
+  item: MenuItem;
+  onClose: () => void;
+  onSaved: () => void;
 }) {
   const supabase = createClient();
-  const router = useRouter();
   const [name, setName] = useState(item.name);
   const [brand, setBrand] = useState(item.brand ?? "");
   const [description, setDescription] = useState(item.description ?? "");
@@ -149,6 +253,15 @@ function EditableProductRow({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  function getStoragePathFromPublicUrl(url: string | null): string | null {
+    if (!url) return null;
+    const marker = "/storage/v1/object/public/cava-assets/";
+    const index = url.indexOf(marker);
+    if (index === -1) return null;
+    const path = url.slice(index + marker.length);
+    return path ? decodeURIComponent(path) : null;
+  }
 
   async function saveChanges() {
     setSaving(true);
@@ -176,20 +289,13 @@ function EditableProductRow({
       if (error) {
         setErrorMessage("No se pudo actualizar el producto.");
       } else {
-        router.refresh();
+        onSaved();
       }
+    } catch {
+      setErrorMessage("No se pudo actualizar el producto.");
     } finally {
       setSaving(false);
     }
-  }
-
-  function getStoragePathFromPublicUrl(url: string | null): string | null {
-    if (!url) return null;
-    const marker = "/storage/v1/object/public/cava-assets/";
-    const index = url.indexOf(marker);
-    if (index === -1) return null;
-    const path = url.slice(index + marker.length);
-    return path ? decodeURIComponent(path) : null;
   }
 
   async function deleteProduct() {
@@ -200,53 +306,84 @@ function EditableProductRow({
     setErrorMessage("");
     try {
       const storagePath = getStoragePathFromPublicUrl(item.image_url);
-
       const { error: deleteError } = await supabase.from("menu_items").delete().eq("id", item.id);
       if (deleteError) {
         setErrorMessage("No se pudo eliminar el producto.");
         return;
       }
-
       if (storagePath) {
-        // Intento de limpieza de archivo. Si falla, no se revierte la eliminacion del producto.
         await supabase.storage.from("cava-assets").remove([storagePath]);
       }
-
-      router.refresh();
+      onSaved();
     } finally {
       setDeleting(false);
     }
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-[var(--admin-border)] bg-white p-3 shadow-sm">
-      <div className="grid gap-2 md:grid-cols-5">
-        <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border bg-transparent p-2" />
-        <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-md border bg-transparent p-2" />
-        <input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border bg-transparent p-2" />
-        <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="rounded-md border bg-transparent p-2" />
-        <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-md border bg-transparent p-2" />
-      </div>
-      <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-        <p className="text-xs text-[var(--foreground-muted)]">Moneda: L. {Number(price).toFixed(2)}</p>
-        <div className="flex flex-wrap items-center gap-2">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/45 p-3 backdrop-blur-[2px] sm:items-center sm:p-6"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-edit-title"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h3 id="product-edit-title" className="text-lg font-semibold text-[var(--admin-foreground)]">
+            Editar producto
+          </h3>
+          <button type="button" onClick={onClose} className="rounded-md border border-[var(--admin-border)] bg-white px-2 py-1 text-sm hover:bg-slate-50">
+            Cerrar
+          </button>
+        </div>
+        <div className="grid gap-3">
+          <label className="text-xs text-[var(--admin-muted)]">
+            Nombre
+            <input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
+          </label>
+          <label className="text-xs text-[var(--admin-muted)]">
+            Marca
+            <input value={brand} onChange={(e) => setBrand(e.target.value)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
+          </label>
+          <label className="text-xs text-[var(--admin-muted)]">
+            Descripcion
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 min-h-20 w-full rounded-md border bg-white p-2 text-sm" />
+          </label>
+          <label className="text-xs text-[var(--admin-muted)]">
+            Precio (L.)
+            <input value={price} onChange={(e) => setPrice(Number(e.target.value))} type="number" step="0.01" className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
+          </label>
+          <label className="text-xs text-[var(--admin-muted)]">
+            Nueva imagen (opcional)
+            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="mt-1 w-full rounded-md border bg-white p-2 text-sm" />
+          </label>
+        </div>
+        {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
+        <div className="mt-5 flex flex-wrap gap-2">
           <button
-            onClick={saveChanges}
+            type="button"
             disabled={saving || deleting}
-            className="rounded-md bg-[var(--admin-accent)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+            onClick={saveChanges}
+            className="rounded-md bg-[var(--admin-accent)] px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
           >
-            {saving ? "Guardando..." : "Aplicar cambios"}
+            {saving ? "Guardando..." : "Guardar cambios"}
           </button>
           <button
-            onClick={deleteProduct}
+            type="button"
             disabled={saving || deleting}
-            className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-100 disabled:opacity-60"
+            onClick={deleteProduct}
+            className="rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:opacity-60"
           >
-            {deleting ? "Eliminando..." : "Eliminar producto"}
+            {deleting ? "Eliminando..." : "Eliminar"}
           </button>
         </div>
       </div>
-      {errorMessage ? <p className="text-xs text-red-600">{errorMessage}</p> : null}
     </div>
   );
 }

@@ -39,6 +39,7 @@ export function BeveragesCatalog({ categories }: Props) {
         `${item.name} ${item.brand ?? ""}`.toLowerCase().includes(query.toLowerCase()),
     ) ?? [];
   const selectedProduct = products.find((p) => p.id === selectedProductId) ?? products[0] ?? null;
+  const isCocteles = selected === "Cocteles";
 
   return (
     <div className="mt-6 space-y-4">
@@ -80,56 +81,81 @@ export function BeveragesCatalog({ categories }: Props) {
               />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-              <div className="max-h-[300px] space-y-2 overflow-auto rounded-lg border border-[var(--border)] p-2 sm:max-h-[420px]">
+            {isCocteles ? (
+              <div className="rounded-lg border border-[var(--border)] bg-black/20">
                 {products.length === 0 ? (
-                  <p className="p-2 text-sm text-[var(--foreground-muted)]">No hay productos para mostrar.</p>
+                  <p className="p-4 text-sm text-[var(--foreground-muted)]">No hay cocteles para mostrar.</p>
                 ) : (
-                  products.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedProductId(item.id)}
-                      className={`w-full rounded-md border px-3 py-2 text-left transition ${
-                        selectedProduct?.id === item.id
-                          ? "border-[var(--accent-gold)] bg-[var(--accent-gold)]/10"
-                          : "border-[var(--border)] hover:border-[var(--accent-gold)]/50"
-                      }`}
-                    >
-                      <p className="text-sm leading-snug">{item.name}</p>
-                      <p className="text-xs text-[var(--foreground-muted)]">{item.brand ?? "Sin marca"}</p>
-                    </button>
-                  ))
+                  <ul className="divide-y divide-[var(--border)]">
+                    {products.map((item) => (
+                      <li key={item.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-base font-medium text-[var(--foreground)]">{item.name}</p>
+                          {item.brand ? (
+                            <p className="text-xs text-[var(--foreground-muted)]">{item.brand}</p>
+                          ) : null}
+                          <p className="mt-1 text-sm leading-relaxed text-[var(--foreground-muted)]">
+                            {item.description?.trim() ? item.description : "—"}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-lg tabular-nums text-white sm:pt-0.5">L. {Number(item.price).toFixed(2)}</p>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
+            ) : (
+              <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+                <div className="max-h-[300px] space-y-2 overflow-auto rounded-lg border border-[var(--border)] p-2 sm:max-h-[420px]">
+                  {products.length === 0 ? (
+                    <p className="p-2 text-sm text-[var(--foreground-muted)]">No hay productos para mostrar.</p>
+                  ) : (
+                    products.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedProductId(item.id)}
+                        className={`w-full rounded-md border px-3 py-2 text-left transition ${
+                          selectedProduct?.id === item.id
+                            ? "border-[var(--accent-gold)] bg-[var(--accent-gold)]/10"
+                            : "border-[var(--border)] hover:border-[var(--accent-gold)]/50"
+                        }`}
+                      >
+                        <p className="text-sm leading-snug">{item.name}</p>
+                        <p className="text-xs text-[var(--foreground-muted)]">{item.brand ?? "Sin marca"}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
 
-              <div className="rounded-lg border border-[var(--border)] bg-black/20 p-3">
-                {selectedProduct ? (
-                  <>
-                    {selectedProduct.image_url ? (
-                      <div className="mb-3 aspect-[4/3] overflow-hidden rounded-md bg-[var(--background-secondary)] sm:aspect-[16/10]">
-                        <img
-                          src={selectedProduct.image_url}
-                          alt={selectedProduct.name}
-                          className="h-full w-full object-contain"
-                        />
+                <div className="rounded-lg border border-[var(--border)] bg-black/20 p-3">
+                  {selectedProduct ? (
+                    <>
+                      {selectedProduct.image_url ? (
+                        <div className="mb-3 aspect-[4/3] overflow-hidden rounded-md bg-[var(--background-secondary)] sm:aspect-[16/10]">
+                          <img
+                            src={selectedProduct.image_url}
+                            alt={selectedProduct.name}
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ) : null}
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-lg">{selectedProduct.name}</p>
+                          <p className="text-sm text-[var(--foreground-muted)]">{selectedProduct.brand ?? "Sin marca"}</p>
+                          {selectedProduct.description && (
+                            <p className="mt-1 text-sm text-[var(--foreground-muted)]">{selectedProduct.description}</p>
+                          )}
+                        </div>
+                        <p className="text-lg text-white">L. {Number(selectedProduct.price).toFixed(2)}</p>
                       </div>
-                    ) : null}
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-lg">{selectedProduct.name}</p>
-                        <p className="text-sm text-[var(--foreground-muted)]">{selectedProduct.brand ?? "Sin marca"}</p>
-                        {selectedProduct.description && (
-                          <p className="mt-1 text-sm text-[var(--foreground-muted)]">{selectedProduct.description}</p>
-                        )}
-                      </div>
-                      <p className="text-lg text-white">L. {Number(selectedProduct.price).toFixed(2)}</p>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-[var(--foreground-muted)]">Selecciona un producto para ver detalles.</p>
-                )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-[var(--foreground-muted)]">Selecciona un producto para ver detalles.</p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
