@@ -4,7 +4,7 @@ import { Bell, CalendarDays, Users, X } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { attachReservationChimeUnlock, playReservationChime } from "@/lib/reservation-chime-audio";
+import { playNewReservationChime } from "@/lib/reservation-chime-audio";
 import { formatReservationTimeSlotLabel } from "@/lib/reservation-time-slots";
 import { createClient } from "@/lib/supabase/client";
 
@@ -67,13 +67,13 @@ function notifyNewPending(
   if (knownIdsRef.current.has(latest.id)) return;
   knownIdsRef.current.add(latest.id);
   setAlert({ latest, pendingCount });
-  void playReservationChime();
 }
 
 export function AdminNewReservationNotify() {
   const router = useRouter();
   const [alert, setAlert] = useState<PendingAlert | null>(null);
   const knownIdsRef = useRef<Set<string> | null>(null);
+  const lastChimedReservationIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
 
   function dismissAlert() {
@@ -81,7 +81,12 @@ export function AdminNewReservationNotify() {
     router.refresh();
   }
 
-  useEffect(() => attachReservationChimeUnlock(), []);
+  useEffect(() => {
+    if (!alert) return;
+    if (lastChimedReservationIdRef.current === alert.latest.id) return;
+    lastChimedReservationIdRef.current = alert.latest.id;
+    playNewReservationChime();
+  }, [alert]);
 
   useEffect(() => {
     const supabase = createClient();

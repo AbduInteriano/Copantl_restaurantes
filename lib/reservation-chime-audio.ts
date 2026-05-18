@@ -1,12 +1,14 @@
-/** Timbre corto: 3 repiques tipo campana, una sola reproduccion (~1.8 s). */
+/**
+ * Timbre de nueva reserva: 3 repiques (~4 s), una sola reproduccion por llamada.
+ * Solo debe invocarse al mostrar el modal de reserva pendiente.
+ */
 
 const SAMPLE_RATE = 44100;
 const RING_COUNT = 3;
-const RING_GAP_S = 0.52;
-const RING_DURATION_S = 0.38;
-const TOTAL_S = (RING_COUNT - 1) * RING_GAP_S + RING_DURATION_S + 0.08;
+const RING_GAP_S = 1.35;
+const RING_DURATION_S = 0.72;
+const TOTAL_S = 4;
 
-/** Parciales tipo campana (ding). */
 const BELL_PARTIALS = [
   { ratio: 1, amp: 1 },
   { ratio: 2.4, amp: 0.45 },
@@ -30,8 +32,8 @@ function buildChimeSamples(): Float32Array {
         sample += Math.sin(2 * Math.PI * BASE_FREQ * p.ratio * t) * p.amp;
       }
       const attack = Math.min(1, t / 0.004);
-      const decay = Math.exp(-t * 11);
-      buf[i] += (sample / 1.65) * attack * decay * 0.52;
+      const decay = Math.exp(-t * 9);
+      buf[i] += (sample / 1.65) * attack * decay * 0.5;
     }
   }
 
@@ -75,69 +77,24 @@ function encodeWavDataUrl(samples: Float32Array): string {
 }
 
 let audioEl: HTMLAudioElement | null = null;
-let unlocked = false;
-let playWhenUnlocked = false;
-let isPlaying = false;
 
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
     audioEl = new Audio(encodeWavDataUrl(buildChimeSamples()));
     audioEl.preload = "auto";
     audioEl.loop = false;
-    audioEl.addEventListener("ended", () => {
-      isPlaying = false;
-    });
   }
   return audioEl;
 }
 
-export async function unlockReservationChime(): Promise<boolean> {
-  if (unlocked) return true;
+/** Reproduce el timbre una vez (3 repiques, ~4 s). */
+export function playNewReservationChime(): void {
   const audio = getAudio();
-  try {
-    audio.volume = 0.001;
-    audio.currentTime = 0;
-    await audio.play();
-    audio.pause();
-    audio.currentTime = 0;
-    audio.volume = 1;
-    unlocked = true;
-    if (playWhenUnlocked) {
-      playWhenUnlocked = false;
-      await playReservationChime();
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function playReservationChime(): Promise<void> {
-  if (isPlaying) return;
-  const audio = getAudio();
-  try {
-    isPlaying = true;
-    audio.pause();
-    audio.currentTime = 0;
-    audio.loop = false;
-    audio.volume = 1;
-    await audio.play();
-    unlocked = true;
-    playWhenUnlocked = false;
-  } catch {
-    isPlaying = false;
-    if (!unlocked) playWhenUnlocked = true;
-  }
-}
-
-export function attachReservationChimeUnlock(): () => void {
-  const unlock = () => {
-    if (!unlocked) void unlockReservationChime();
-  };
-  document.addEventListener("pointerdown", unlock, { capture: true });
-  document.addEventListener("keydown", unlock, { capture: true });
-  return () => {
-    document.removeEventListener("pointerdown", unlock, { capture: true });
-    document.removeEventListener("keydown", unlock, { capture: true });
-  };
+  audio.pause();
+  audio.currentTime = 0;
+  audio.loop = false;
+  audio.volume = 1;
+  void audio.play().catch(() => {
+    /* Navegador bloqueo autoplay: sin reintentos ni otros sonidos en el panel */
+  });
 }
