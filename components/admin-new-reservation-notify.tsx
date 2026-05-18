@@ -3,11 +3,8 @@
 import { Bell, CalendarDays, Users, X } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
-import {
-  attachReservationChimeUnlock,
-  playReservationChime,
-  unlockReservationChime,
-} from "@/lib/reservation-chime-audio";
+import { useRouter } from "next/navigation";
+import { attachReservationChimeUnlock, playReservationChime } from "@/lib/reservation-chime-audio";
 import { formatReservationTimeSlotLabel } from "@/lib/reservation-time-slots";
 import { createClient } from "@/lib/supabase/client";
 
@@ -74,9 +71,15 @@ function notifyNewPending(
 }
 
 export function AdminNewReservationNotify() {
+  const router = useRouter();
   const [alert, setAlert] = useState<PendingAlert | null>(null);
   const knownIdsRef = useRef<Set<string> | null>(null);
   const mountedRef = useRef(true);
+
+  function dismissAlert() {
+    setAlert(null);
+    router.refresh();
+  }
 
   useEffect(() => attachReservationChimeUnlock(), []);
 
@@ -188,7 +191,7 @@ export function AdminNewReservationNotify() {
           </div>
           <button
             type="button"
-            onClick={() => setAlert(null)}
+            onClick={dismissAlert}
             className="rounded-lg border border-[var(--admin-border)] p-2 text-[var(--admin-muted)] hover:bg-slate-50"
             aria-label="Cerrar aviso"
           >
@@ -243,10 +246,7 @@ export function AdminNewReservationNotify() {
 
         <button
           type="button"
-          onClick={() => {
-            void unlockReservationChime().then(() => playReservationChime());
-            setAlert(null);
-          }}
+          onClick={dismissAlert}
           className="mt-6 w-full rounded-xl bg-[var(--admin-accent)] px-4 py-3.5 text-base font-semibold text-white shadow-sm hover:opacity-95"
         >
           Entendido

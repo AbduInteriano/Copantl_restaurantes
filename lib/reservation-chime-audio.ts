@@ -1,28 +1,40 @@
-/** Timbre "tin tin tin tin" (~4 s) como WAV en memoria — mas fiable que Web Audio suelto. */
+/** Timbre corto: 3 repiques tipo campana, una sola reproduccion (~1.8 s). */
 
 const SAMPLE_RATE = 44100;
-const CHIME_NOTES = [
-  { freq: 784, start: 0 },
-  { freq: 988, start: 1.05 },
-  { freq: 1175, start: 2.1 },
-  { freq: 1568, start: 3.15 },
+const RING_COUNT = 3;
+const RING_GAP_S = 0.52;
+const RING_DURATION_S = 0.38;
+const TOTAL_S = (RING_COUNT - 1) * RING_GAP_S + RING_DURATION_S + 0.08;
+
+/** Parciales tipo campana (ding). */
+const BELL_PARTIALS = [
+  { ratio: 1, amp: 1 },
+  { ratio: 2.4, amp: 0.45 },
+  { ratio: 3.8, amp: 0.22 },
 ] as const;
-const NOTE_LEN_S = 0.65;
-const TOTAL_S = 4.05;
+const BASE_FREQ = 740;
 
 function buildChimeSamples(): Float32Array {
   const n = Math.floor(SAMPLE_RATE * TOTAL_S);
   const buf = new Float32Array(n);
-  for (const { freq, start } of CHIME_NOTES) {
-    const i0 = Math.floor(start * SAMPLE_RATE);
-    const i1 = Math.floor((start + NOTE_LEN_S) * SAMPLE_RATE);
+
+  for (let ring = 0; ring < RING_COUNT; ring++) {
+    const startSec = ring * RING_GAP_S;
+    const i0 = Math.floor(startSec * SAMPLE_RATE);
+    const i1 = Math.floor((startSec + RING_DURATION_S) * SAMPLE_RATE);
+
     for (let i = i0; i < i1 && i < n; i++) {
       const t = (i - i0) / SAMPLE_RATE;
-      const attack = Math.min(1, t / 0.012);
-      const decay = Math.exp(-t * 3);
-      buf[i] += Math.sin(2 * Math.PI * freq * t) * attack * decay * 0.45;
+      let sample = 0;
+      for (const p of BELL_PARTIALS) {
+        sample += Math.sin(2 * Math.PI * BASE_FREQ * p.ratio * t) * p.amp;
+      }
+      const attack = Math.min(1, t / 0.004);
+      const decay = Math.exp(-t * 11);
+      buf[i] += (sample / 1.65) * attack * decay * 0.52;
     }
   }
+
   return buf;
 }
 
@@ -65,16 +77,22 @@ function encodeWavDataUrl(samples: Float32Array): string {
 let audioEl: HTMLAudioElement | null = null;
 let unlocked = false;
 let playWhenUnlocked = false;
+let isPlaying = false;
 
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
     audioEl = new Audio(encodeWavDataUrl(buildChimeSamples()));
     audioEl.preload = "auto";
+    audioEl.loop = false;
+    audioEl.addEventListener("ended", () => {
+      isPlaying = false;
+    });
   }
   return audioEl;
 }
 
 export async function unlockReservationChime(): Promise<boolean> {
+  if (unlocked) return true;
   const audio = getAudio();
   try {
     audio.volume = 0.001;
@@ -95,22 +113,26 @@ export async function unlockReservationChime(): Promise<boolean> {
 }
 
 export async function playReservationChime(): Promise<void> {
+  if (isPlaying) return;
   const audio = getAudio();
   try {
+    isPlaying = true;
     audio.pause();
     audio.currentTime = 0;
+    audio.loop = false;
     audio.volume = 1;
     await audio.play();
     unlocked = true;
     playWhenUnlocked = false;
   } catch {
+    isPlaying = false;
     if (!unlocked) playWhenUnlocked = true;
   }
 }
 
 export function attachReservationChimeUnlock(): () => void {
   const unlock = () => {
-    void unlockReservationChime();
+    if (!unlocked) void unlockReservationChime();
   };
   document.addEventListener("pointerdown", unlock, { capture: true });
   document.addEventListener("keydown", unlock, { capture: true });
