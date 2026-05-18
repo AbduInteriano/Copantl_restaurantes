@@ -2,10 +2,10 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/types";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 export function createClient() {
-  return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
+  const url = getSupabaseUrl()!;
+  const anonKey = getSupabaseAnonKey()!;
+  return createBrowserClient<Database>(url, anonKey);
 }

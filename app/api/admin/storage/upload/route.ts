@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { createServiceClient, hasServiceClientConfig } from "@/lib/supabase/admin";
+import { describeMissingSupabaseEnv } from "@/lib/supabase/env";
+import { createClient } from "@/lib/supabase/server";
 
 const BUCKET_IDS = ["copantl_assets", "cava-assets"] as const;
-const SETTINGS_LOGO_FIELDS = new Set(["logo_url", "logo_url_2", "logo_url_3"]);
 
 function sanitizeFileName(name: string) {
   const trimmed = name.trim() || "imagen.png";
   return trimmed.replace(/[^\w.\-()]/g, "_").replace(/_+/g, "_");
 }
 
-async function ensureBucket(svc: ReturnType<typeof createServiceClient>, bucketId: string) {
+async function ensureBucket(svc: SupabaseClient, bucketId: string) {
   const { data: buckets, error: listError } = await svc.storage.listBuckets();
   if (listError) return listError.message;
   if (buckets?.some((b) => b.id === bucketId)) return null;
@@ -21,6 +23,50 @@ async function ensureBucket(svc: ReturnType<typeof createServiceClient>, bucketI
     allowedMimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"],
   });
   return createError?.message ?? null;
+}
+
+async function uploadToStorage(
+  svc: SupabaseClient,
+  filePath: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<{ publicUrl: string; bucket: string } | { error: string }> {
+  let lastError = "No se pudo subir la imagen.";
+
+  for (const bucketId of BUCKET_IDS) {
+    await ensureBucket(svc, bucketId);
+    const { error } = await svc.storage.from(bucketId).upload(filePath, buffer, {
+      contentType,
+      upsert: true,
+    });
+    if (!error) {
+      const { data: urlData } = svc.storage.from(bucketId).getPublicUrl(filePath);
+      return { publicUrl: urlData.publicUrl, bucket: bucketId };
+    }
+    lastError = error.message;
+  }
+
+  return { error: lastError };
+}
+
+function getStorageClient(): SupabaseClient | { error: string } {
+  if (hasServiceClientConfig()) {
+    try {
+      return createServiceClient();
+    } catch {
+      /* fallback abajo */
+    }
+  }
+
+  try {
+    return createClient();
+  } catch (e) {
+    const hint = describeMissingSupabaseEnv();
+    const detail = e instanceof Error ? e.message : "";
+    return {
+      error: hint || detail || "Configuración de Supabase incompleta en el servidor.",
+    };
+  }
 }
 
 export async function POST(req: Request) {
@@ -38,7 +84,6 @@ export async function POST(req: Request) {
 
   const file = formData.get("file");
   const folder = String(formData.get("folder") ?? "uploads").replace(/^\/+|\/+$/g, "");
-  const settingsField = formData.get("settingsField");
 
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "Selecciona un archivo de imagen." }, { status: 400 });
@@ -52,61 +97,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "La imagen no puede superar 10 MB." }, { status: 400 });
   }
 
-  let svc: ReturnType<typeof createServiceClient>;
-  try {
-    svc = createServiceClient();
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Configuración del servidor incompleta";
-    return NextResponse.json(
-      { error: `${msg}. Agrega SUPABASE_SERVICE_ROLE_KEY en .env.local y reinicia el servidor.` },
-      { status: 500 },
-    );
+  const storageClient = getStorageClient();
+  if ("error" in storageClient) {
+    return NextResponse.json({ error: storageClient.error }, { status: 500 });
   }
 
   const filePath = `${folder}/${Date.now()}-${sanitizeFileName(file.name)}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   const contentType = file.type || "image/png";
 
-  let bucketUsed: string | null = null;
-  let lastError = "No se pudo subir la imagen.";
-
-  for (const bucketId of BUCKET_IDS) {
-    await ensureBucket(svc, bucketId);
-    const { error } = await svc.storage.from(bucketId).upload(filePath, buffer, {
-      contentType,
-      upsert: true,
-    });
-    if (!error) {
-      bucketUsed = bucketId;
-      break;
-    }
-    lastError = error.message;
+  const uploadResult = await uploadToStorage(storageClient, filePath, buffer, contentType);
+  if ("error" in uploadResult) {
+    return NextResponse.json({ error: uploadResult.error }, { status: 500 });
   }
 
-  if (!bucketUsed) {
-    return NextResponse.json({ error: lastError }, { status: 500 });
-  }
-
-  const { data: urlData } = svc.storage.from(bucketUsed).getPublicUrl(filePath);
-  const publicUrl = urlData.publicUrl;
-
-  if (settingsField !== null && settingsField !== undefined && String(settingsField) !== "") {
-    const field = String(settingsField);
-    if (!SETTINGS_LOGO_FIELDS.has(field)) {
-      return NextResponse.json({ error: "Campo de configuración no válido." }, { status: 400 });
-    }
-
-    const { error: dbError } = await svc.from("site_settings").update({ [field]: publicUrl }).eq("id", 1);
-    if (dbError) {
-      return NextResponse.json(
-        {
-          error: `La imagen se subió, pero no se guardó en el sitio: ${dbError.message}. Ejecuta en Supabase: alter table public.site_settings add column if not exists logo_url_2 text; alter table public.site_settings add column if not exists logo_url_3 text;`,
-          publicUrl,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  return NextResponse.json({ publicUrl, bucket: bucketUsed, path: filePath });
+  return NextResponse.json({
+    publicUrl: uploadResult.publicUrl,
+    bucket: uploadResult.bucket,
+    path: filePath,
+  });
 }
