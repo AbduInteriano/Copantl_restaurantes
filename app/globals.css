@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0d0d0d;
+  --background-secondary: #120f12;
+  --surface: #191417;
+  --accent-gold: #660e1a;
+  --accent-burgundy: #660e1a;
+  --foreground: #f5f0e8;
+  --foreground-muted: #baac9b;
+  --border: #3a2329;
+  /* Admin: paleta neutra y alto contraste (el sitio público sigue con vino #660e1a) */
+  --admin-brand: #660e1a;
+  --admin-bg: #f1f5f9;
+  --admin-sidebar: #ffffff;
+  --admin-card: #ffffff;
+  --admin-accent: #1d4ed8;
+  --admin-foreground: #0f172a;
+  --admin-muted: #475569;
+  --admin-border: #cbd5e1;
+  --admin-input-bg: #ffffff;
+  --admin-danger: #b45309;
+  --admin-danger-bg: #fff7ed;
+  --admin-success: #15803d;
+  --admin-success-contrast: #f0fdf4;
+}
+
+/* Dentro del panel admin, texto y bordes legibles sin depender del tema público */
+.admin-shell {
+  --foreground: var(--admin-foreground);
+  --foreground-muted: var(--admin-muted);
+  --border: var(--admin-border);
+}
+
+.admin-shell input:not([type="checkbox"]):not([type="radio"]),
+.admin-shell select,
+.admin-shell textarea {
+  color: var(--admin-foreground);
+  background-color: var(--admin-input-bg);
+  border-color: var(--admin-border);
+}
+
+.admin-shell input[type="file"] {
+  color: var(--admin-foreground);
+  border-color: var(--admin-border);
+  background-color: var(--admin-input-bg);
+}
+
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder {
+  color: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-cardo);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-cardo), serif;
+}
+
+/* Movil: primera pantalla negra a altura completa; el resto aparece al hacer scroll */
+.mobile-landing-hero {
+  min-height: 100dvh;
+  min-height: 100svh;
+  background: #000000;
+}
+
+@media (min-width: 640px) {
+  .mobile-landing-hero {
+    min-height: 78vh;
+    background: transparent;
+  }
+}
+
+.grain-overlay {
+  position: relative;
+}
+
+.grain-overlay::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: radial-gradient(#fff 0.5px, transparent 0.5px);
+  background-size: 3px 3px;
+  mix-blend-mode: soft-light;
+}
+
+.section-title {
+  font-family: var(--font-cardo), serif;
+  letter-spacing: 0.08em;
+}
+
+.gold-divider {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+}
+
+/* Fecha/hora en formulario de reserva: caja e icono visibles en movil y tema oscuro */
+.reservation-datetime-input {
+  color-scheme: dark;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.reservation-datetime-input[type="date"] {
+  min-width: 0;
+}
+
+.reservation-datetime-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+  filter: invert(1);
+}
+
+/*
+ * Hero: brillo solo en titulo (brand-logo.tsx BRAND_HERO_SHINE_ENABLED).
+ * El logo no lleva sombra ni marco; solo imagen + texto.
+ */
+.brand-hero-shine-wrap .brand-hero-title-shine {
+  color: #ffffff;
+  text-shadow:
+    0 0 26px rgba(255, 248, 242, 0.28),
+    0 2px 6px rgba(0, 0, 0, 0.92),
+    0 8px 36px rgba(102, 14, 26, 0.72);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-hero-shine-wrap .brand-hero-title-shine {
+    animation: brand-hero-title-glimmer 7s ease-in-out infinite;
+  }
+}
+
+@keyframes brand-hero-title-glimmer {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+}
