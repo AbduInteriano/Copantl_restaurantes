@@ -135,30 +135,38 @@ export function ReservationBookingForm({
             <option value="terraza">Terraza</option>
           </select>
         </label>
-        <input
-          className={dateTimeInputClass}
-          type={dateInputType}
-          placeholder="Fecha"
-          inputMode="none"
-          aria-label="Fecha de la reserva"
-          {...dateField}
-          onFocus={() => setDateInputType("date")}
-          onBlur={(event) => {
-            dateField.onBlur(event);
-            if (!event.currentTarget.value) setDateInputType("text");
-          }}
-        />
-        <label className={`flex flex-col gap-1.5 ${compact ? "text-xs" : "text-sm"} text-[var(--foreground-muted)]`}>
-          <span className="font-medium text-[var(--foreground)]">Hora</span>
-          <select className={dateTimeInputClass} {...timeRegister}>
-            <option value="">Selecciona hora</option>
-            {timeOptions.map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className={`grid min-w-0 ${gridGap} md:col-span-2 md:grid-cols-2`}>
+          <label
+            className={`flex min-w-0 flex-col gap-1.5 ${compact ? "text-xs" : "text-sm"} text-[var(--foreground-muted)]`}
+          >
+            <span className="font-medium text-[var(--foreground)]">Fecha</span>
+            <input
+              className={dateTimeInputClass}
+              type={dateInputType}
+              placeholder="Selecciona fecha"
+              inputMode="none"
+              {...dateField}
+              onFocus={() => setDateInputType("date")}
+              onBlur={(event) => {
+                dateField.onBlur(event);
+                if (!event.currentTarget.value) setDateInputType("text");
+              }}
+            />
+          </label>
+          <label
+            className={`flex min-w-0 flex-col gap-1.5 ${compact ? "text-xs" : "text-sm"} text-[var(--foreground-muted)]`}
+          >
+            <span className="font-medium text-[var(--foreground)]">Hora</span>
+            <select className={dateTimeInputClass} {...timeRegister}>
+              <option value="">Selecciona hora</option>
+              {timeOptions.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
       <textarea
         className={`min-h-24 w-full ${inputClass}`}

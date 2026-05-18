@@ -97,6 +97,14 @@ body {
 /* Fecha/hora en formulario de reserva: caja e icono visibles en movil y tema oscuro */
 .reservation-datetime-input {
   color-scheme: dark;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.reservation-datetime-input[type="date"] {
+  min-width: 0;
 }
 
 .reservation-datetime-input::-webkit-calendar-picker-indicator {
