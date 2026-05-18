@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -237,7 +237,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       )
     ) {
       const ok = window.confirm(
-        "Atencion: ya hay otra reserva activa en la misma fecha y hora. ¿Deseas guardar de todas formas?",
+        "Atencion: ya hay otra reserva activa en la misma fecha y hora. Â¿Deseas guardar de todas formas?",
       );
       if (!ok) return;
     }
@@ -278,6 +278,93 @@ export function AdminReservationsDashboard({ reservations }: Props) {
           {manualMsg}
         </p>
       )}
+
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setManualOpen((o) => !o)}
+          aria-expanded={manualOpen}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition ${
+            manualOpen
+              ? "border border-[var(--admin-border)] bg-white text-[var(--admin-foreground)] hover:bg-slate-50"
+              : "bg-[var(--admin-accent)] text-white hover:opacity-95"
+          }`}
+        >
+          Nueva reserva +
+        </button>
+        {manualOpen && (
+          <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm sm:p-6">
+            <form onSubmit={submitManual} className="grid gap-3 sm:grid-cols-2">
+              <input name="full_name" required className="rounded-md border bg-transparent p-3" placeholder="Nombre completo" />
+              <input name="email" type="email" required className="rounded-md border bg-transparent p-3" placeholder="Correo" />
+              <input name="phone" required className="rounded-md border bg-transparent p-3" placeholder="Telefono" />
+              <input name="guests" type="number" min={1} max={MAX_GUESTS_PER_RESERVATION} defaultValue={2} required className="rounded-md border bg-transparent p-3" placeholder="Personas" />
+              <select name="area" className="rounded-md border bg-transparent p-3" defaultValue="climatizado">
+                <option value="climatizado">Area: Climatizado</option>
+                <option value="terraza">Area: Terraza</option>
+              </select>
+              <input
+                name="reservation_date"
+                type="date"
+                required
+                className="rounded-md border bg-transparent p-3"
+                value={manualDate}
+                onChange={(e) => setManualDate(e.target.value)}
+              />
+              <label className="block text-xs text-[var(--foreground-muted)] sm:col-span-2">
+                Hora (cada 30 min)
+                <select
+                  name="reservation_time"
+                  required
+                  className="mt-1 w-full rounded-md border bg-transparent p-3"
+                  value={manualTime}
+                  onChange={(e) => setManualTime(e.target.value)}
+                >
+                  <option value="">Elija hora…</option>
+                  {RESERVATION_TIME_SLOT_VALUES.map((v) => (
+                    <option key={v} value={v}>
+                      {formatReservationTimeSlotLabel(v)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <select
+                className="rounded-md border bg-transparent p-3 sm:col-span-2"
+                value={manualStatus}
+                onChange={(e) => setManualStatus(e.target.value as "confirmada" | "pendiente")}
+              >
+                <option value="confirmada">Confirmada (asigna mesa)</option>
+                <option value="pendiente">Pendiente (sin mesa)</option>
+              </select>
+              {manualStatus === "confirmada" && (
+                <label className="text-sm sm:col-span-2">
+                  <span className="text-[var(--foreground-muted)]">Mesa libre en este horario</span>
+                  <select name="mesa" required className="mt-1 w-full rounded-md border bg-transparent p-3">
+                    <option value="">Elija mesa…</option>
+                    {manualFreeMesas.map((n) => (
+                      <option key={n} value={n}>
+                        Mesa {n}
+                      </option>
+                    ))}
+                  </select>
+                  {manualFreeMesas.length === 0 && manualDate && manualTime && (
+                    <span className="mt-1 block text-xs font-medium text-amber-800">
+                      No hay mesas libres en ese horario.
+                    </span>
+                  )}
+                </label>
+              )}
+              <textarea name="notes" className="min-h-20 rounded-md border bg-transparent p-3 sm:col-span-2" placeholder="Notas internas" />
+              <button
+                type="submit"
+                className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-white shadow-sm hover:opacity-95 sm:col-span-2"
+              >
+                Crear reserva
+              </button>
+            </form>
+          </section>
+        )}
+      </div>
 
       <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm sm:p-6">
         <h2 className="mb-4 text-lg font-semibold tracking-wide text-[var(--admin-foreground)]">
@@ -334,7 +421,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                     {list.slice(0, 6).map((r) => (
                       <span
                         key={r.id}
-                        title={`Mesa ${r.mesa} · ${normalizeTimeKey(r.reservation_time)}`}
+                        title={`Mesa ${r.mesa} Â· ${normalizeTimeKey(r.reservation_time)}`}
                         className="h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
                       />
@@ -564,97 +651,6 @@ export function AdminReservationsDashboard({ reservations }: Props) {
         </div>
       )}
 
-      <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] shadow-sm">
-        <button
-          type="button"
-          onClick={() => setManualOpen((o) => !o)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left sm:px-6"
-        >
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--admin-foreground)]">Nueva reserva manual</h2>
-            <p className="mt-0.5 text-sm text-[var(--foreground-muted)]">
-              Crear una reserva desde el local (colapsado hasta que lo necesites).
-            </p>
-          </div>
-          {manualOpen ? (
-            <ChevronUp className="shrink-0 text-[var(--admin-muted)]" size={22} />
-          ) : (
-            <ChevronDown className="shrink-0 text-[var(--admin-muted)]" size={22} />
-          )}
-        </button>
-        {manualOpen && (
-          <div className="border-t border-[var(--admin-border)] px-4 pb-5 pt-2 sm:px-6">
-            <form onSubmit={submitManual} className="grid gap-3 sm:grid-cols-2">
-              <input name="full_name" required className="rounded-md border bg-transparent p-3" placeholder="Nombre completo" />
-              <input name="email" type="email" required className="rounded-md border bg-transparent p-3" placeholder="Correo" />
-              <input name="phone" required className="rounded-md border bg-transparent p-3" placeholder="Telefono" />
-              <input name="guests" type="number" min={1} max={MAX_GUESTS_PER_RESERVATION} defaultValue={2} required className="rounded-md border bg-transparent p-3" placeholder="Personas" />
-              <select name="area" className="rounded-md border bg-transparent p-3" defaultValue="climatizado">
-                <option value="climatizado">Area: Climatizado</option>
-                <option value="terraza">Area: Terraza</option>
-              </select>
-              <input
-                name="reservation_date"
-                type="date"
-                required
-                className="rounded-md border bg-transparent p-3"
-                value={manualDate}
-                onChange={(e) => setManualDate(e.target.value)}
-              />
-              <label className="block text-xs text-[var(--foreground-muted)] sm:col-span-2">
-                Hora (cada 30 min)
-                <select
-                  name="reservation_time"
-                  required
-                  className="mt-1 w-full rounded-md border bg-transparent p-3"
-                  value={manualTime}
-                  onChange={(e) => setManualTime(e.target.value)}
-                >
-                  <option value="">Elija hora…</option>
-                  {RESERVATION_TIME_SLOT_VALUES.map((v) => (
-                    <option key={v} value={v}>
-                      {formatReservationTimeSlotLabel(v)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <select
-                className="rounded-md border bg-transparent p-3 sm:col-span-2"
-                value={manualStatus}
-                onChange={(e) => setManualStatus(e.target.value as "confirmada" | "pendiente")}
-              >
-                <option value="confirmada">Confirmada (asigna mesa)</option>
-                <option value="pendiente">Pendiente (sin mesa)</option>
-              </select>
-              {manualStatus === "confirmada" && (
-                <label className="text-sm sm:col-span-2">
-                  <span className="text-[var(--foreground-muted)]">Mesa libre en este horario</span>
-                  <select name="mesa" required className="mt-1 w-full rounded-md border bg-transparent p-3">
-                    <option value="">Elija mesa…</option>
-                    {manualFreeMesas.map((n) => (
-                      <option key={n} value={n}>
-                        Mesa {n}
-                      </option>
-                    ))}
-                  </select>
-                  {manualFreeMesas.length === 0 && manualDate && manualTime && (
-                    <span className="mt-1 block text-xs font-medium text-amber-800">
-                      No hay mesas libres en ese horario.
-                    </span>
-                  )}
-                </label>
-              )}
-              <textarea name="notes" className="min-h-20 rounded-md border bg-transparent p-3 sm:col-span-2" placeholder="Notas internas" />
-              <button
-                type="submit"
-                className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-white shadow-sm hover:opacity-95 sm:col-span-2"
-              >
-                Crear reserva
-              </button>
-            </form>
-          </div>
-        )}
-      </section>
 
       <section>
         <h2 className="mb-3 text-lg font-semibold text-[var(--admin-foreground)]">
@@ -689,7 +685,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               Reservas activas ({activeOnlyCount})
               {includeCancelledInList && (
                 <span className="ml-2 text-base font-normal text-[var(--foreground-muted)]">
-                  · mostrando {activeReservations.length} filas
+                  Â· mostrando {activeReservations.length} filas
                 </span>
               )}
             </h2>

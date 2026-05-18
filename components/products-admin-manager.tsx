@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
@@ -15,6 +15,8 @@ type Props = {
 };
 
 type MenuItem = Database["public"]["Tables"]["menu_items"]["Row"];
+
+const PRODUCTS_LIST_INITIAL_LIMIT = 20;
 
 export function ProductsAdminManager({ categories }: Props) {
   const beverageFamilies = ["Vino", "Ron", "Whisky", "Ginebra", "Tequila", "Cocteles"];
@@ -60,8 +62,13 @@ function CategoryCard({ category }: { category: Category }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [showAllProducts, setShowAllProducts] = useState(false);
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
   const isCocteles = category.name === "Cocteles";
+
+  useEffect(() => {
+    setShowAllProducts(false);
+  }, [category.id, search]);
 
   async function deleteProductRow(item: MenuItem) {
     const confirmed = window.confirm(`¿Eliminar "${item.name}"? Esta accion no se puede deshacer.`);
@@ -129,6 +136,12 @@ function CategoryCard({ category }: { category: Category }) {
     `${item.name} ${item.brand ?? ""}`.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const searchActive = search.trim().length > 0;
+  const visibleItems =
+    searchActive || showAllProducts ? filtered : filtered.slice(0, PRODUCTS_LIST_INITIAL_LIMIT);
+  const hiddenCount = filtered.length - PRODUCTS_LIST_INITIAL_LIMIT;
+  const showVerMas = !searchActive && !showAllProducts && hiddenCount > 0;
+
   return (
     <div className="space-y-3 rounded-lg border border-[var(--admin-border)] bg-slate-50/40 p-4">
       <p className="text-xl font-semibold text-[var(--admin-foreground)]">{category.name}</p>
@@ -179,7 +192,7 @@ function CategoryCard({ category }: { category: Category }) {
                 </td>
               </tr>
             ) : (
-              filtered.map((item) => (
+              visibleItems.map((item) => (
                 <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/80">
                   <td className="px-2 py-1.5 align-middle sm:px-3">
                     {item.image_url ? (
@@ -225,6 +238,16 @@ function CategoryCard({ category }: { category: Category }) {
           </tbody>
         </table>
       </div>
+
+      {showVerMas ? (
+        <button
+          type="button"
+          onClick={() => setShowAllProducts(true)}
+          className="w-full rounded-md border border-[var(--admin-border)] bg-white px-3 py-2 text-sm font-medium text-[var(--admin-accent)] hover:bg-blue-50"
+        >
+          Ver más ({hiddenCount} {hiddenCount === 1 ? "producto" : "productos"})
+        </button>
+      ) : null}
 
       {editItem ? (
         <ProductEditModal
