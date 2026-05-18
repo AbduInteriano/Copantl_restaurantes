@@ -52,8 +52,11 @@ export default async function Home() {
   });
 
   return (
-    <main className="grain-overlay overflow-x-hidden">
-      <section className="mx-auto flex min-h-[72vh] w-full max-w-6xl flex-col items-center justify-center px-5 text-center sm:min-h-[78vh] sm:px-8 lg:px-6">
+    <main className="overflow-x-hidden">
+      <section
+        className="mobile-landing-hero relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center justify-center px-5 text-center sm:min-h-[78vh] sm:px-8 lg:px-6"
+        aria-label="Inicio"
+      >
         <FadeIn>
           <BrandLogo logoUrl={site.logo_url} />
           <div className="mt-8 w-full max-w-sm px-1 sm:mt-10 sm:max-w-md">
@@ -65,6 +68,8 @@ export default async function Home() {
           </div>
         </FadeIn>
       </section>
+
+      <div className="grain-overlay relative">
       <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-10 sm:px-8 sm:py-14 md:grid-cols-2 lg:px-6">
         <FadeIn>
           <h2 className="section-title text-4xl">La experiencia CAVA</h2>
@@ -105,6 +110,8 @@ export default async function Home() {
         tiktokUrl={site.tiktok_url}
         whatsappUrl={site.whatsapp_url}
       />
+      </div>
+
       <FloatingCornerActions items={eventItems} socialHrefs={socialHrefs} />
     </main>
   );

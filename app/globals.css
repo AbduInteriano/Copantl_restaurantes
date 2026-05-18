@@ -68,6 +68,20 @@ body {
   font-family: var(--font-cardo), serif;
 }
 
+/* Movil: primera pantalla negra a altura completa; el resto aparece al hacer scroll */
+.mobile-landing-hero {
+  min-height: 100dvh;
+  min-height: 100svh;
+  background: #000000;
+}
+
+@media (min-width: 640px) {
+  .mobile-landing-hero {
+    min-height: 78vh;
+    background: transparent;
+  }
+}
+
 .grain-overlay {
   position: relative;
 }
