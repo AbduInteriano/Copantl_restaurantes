@@ -4,6 +4,7 @@ import emailjs from "@emailjs/browser";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { formatReservationTimeSlotLabel, RESERVATION_TIME_SLOT_VALUES } from "@/lib/reservation-time-slots";
+import { RESTAURANTS, type RestaurantKey } from "@/lib/restaurants";
 
 export type ReservationValues = {
   full_name: string;
@@ -12,7 +13,7 @@ export type ReservationValues = {
   guests: number;
   reservation_date: string;
   reservation_time: string;
-  area: "climatizado" | "terraza";
+  area: RestaurantKey;
   notes?: string;
 };
 
@@ -40,7 +41,7 @@ export function ReservationBookingForm({
   const [dateInputType, setDateInputType] = useState<"text" | "date">("text");
   const { register, handleSubmit, reset } = useForm<ReservationValues>({
     defaultValues: {
-      area: "climatizado",
+      area: "cbari",
       reservation_time: "",
     },
   });
@@ -94,7 +95,7 @@ export function ReservationBookingForm({
         }
       }
 
-      reset({ area: "climatizado", reservation_time: "" });
+      reset({ area: "cbari", reservation_time: "" });
       setDateInputType("text");
       if (onSuccess) {
         onSuccess();
@@ -125,14 +126,17 @@ export function ReservationBookingForm({
           type="number"
           min={1}
           max={20}
-          placeholder="Numero de personas (max. 20)"
+          placeholder="Numero de personas"
           {...register("guests", { required: true, valueAsNumber: true })}
         />
         <label className={`flex flex-col gap-1.5 md:col-span-2 ${compact ? "text-xs" : "text-sm"} text-[var(--foreground-muted)]`}>
-          <span className="font-medium text-[var(--foreground)]">Area</span>
+          <span className="font-medium text-[var(--foreground)]">Restaurante</span>
           <select className={inputClass} {...register("area", { required: true })}>
-            <option value="climatizado">Climatizado</option>
-            <option value="terraza">Terraza</option>
+            {RESTAURANTS.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.shortLabel}
+              </option>
+            ))}
           </select>
         </label>
         <div className={`grid min-w-0 ${gridGap} md:col-span-2 md:grid-cols-2`}>

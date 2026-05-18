@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendEmailWithTemplate } from "@/lib/email";
+import { formatReservationRestaurant, parseReservationRestaurant } from "@/lib/restaurants";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,8 +14,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const area =
-    payload.area === "terraza" || payload.area === "climatizado" ? payload.area : "climatizado";
+  const area = parseReservationRestaurant(payload.area);
 
   const supabase = createClient();
 
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     guests: payload.guests,
     reservation_date: payload.reservation_date,
     reservation_time: payload.reservation_time,
-    area: area === "terraza" ? "Terraza" : "Climatizado",
+    area: formatReservationRestaurant(area),
     notes: payload.notes ?? "",
     message:
       "Recibimos su solicitud de reservacion y pronto nos pondremos en contacto para confirmarla.",

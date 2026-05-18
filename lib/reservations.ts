@@ -1,22 +1,22 @@
+import {
+  formatReservationRestaurant,
+  formatReservationRestaurantLong,
+  type RestaurantKey,
+} from "@/lib/restaurants";
+
 export const MESA_COUNT = 10;
 export const MAX_GUESTS_PER_RESERVATION = 20;
 
-export type ReservationAreaPreference = "climatizado" | "terraza";
+export type ReservationAreaPreference = RestaurantKey;
 
 export function formatReservationArea(area: string | null | undefined): string {
-  if (area === "terraza") return "Terraza";
-  if (area === "climatizado") return "Climatizado";
-  return "—";
+  return formatReservationRestaurant(area);
 }
 
-/** Etiqueta larga para UI (pendientes / detalle). */
 export function formatReservationAreaLong(area: string | null | undefined): string {
-  if (area === "terraza") return "Terraza (exterior)";
-  if (area === "climatizado") return "Sala climatizada";
-  return "No especificado";
+  return formatReservationRestaurantLong(area);
 }
 
-/** Normaliza hora de DB o input (ej. "20:00:00" -> "20:00") */
 export function normalizeTimeKey(time: string): string {
   if (!time) return "";
   const m = time.match(/^(\d{1,2}):(\d{2})/);
@@ -28,7 +28,6 @@ export function timesMatch(a: string, b: string): boolean {
   return normalizeTimeKey(a) === normalizeTimeKey(b);
 }
 
-/** Reservas activas (no canceladas) en el mismo slot fecha+hora. */
 export function hasReservationSlotConflict(
   reservations: {
     id: string;

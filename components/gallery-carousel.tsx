@@ -16,6 +16,9 @@ type Props = {
 
 const AUTO_MS = 5000;
 
+/** Altura visible del carrusel (px). Exportar fotos ~2400×1000 (2.4:1) para encajar sin recorte. */
+const CAROUSEL_HEIGHT = { base: 280, sm: 360, md: 420 } as const;
+
 export function GalleryCarousel({ items }: Props) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -60,22 +63,22 @@ export function GalleryCarousel({ items }: Props) {
       aria-roledescription="carrusel"
       aria-label="Fotografias"
     >
-      <div className="relative aspect-[16/10] w-full sm:aspect-[21/9] md:aspect-[2.4/1]">
+      <div className="relative h-[280px] w-full bg-[var(--background-secondary)] sm:h-[360px] md:h-[420px]">
         <AnimatePresence mode="wait" initial={false}>
           <motion.img
             key={current.id}
             src={current.image_url}
             alt={current.title ?? `Fotografia ${index + 1}`}
-            initial={{ opacity: 0, scale: 1.03 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.45, ease: "easeOut" }}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 m-auto h-full w-full object-contain p-1 sm:p-2"
             draggable={false}
           />
         </AnimatePresence>
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
 
         {count > 1 ? (
           <>

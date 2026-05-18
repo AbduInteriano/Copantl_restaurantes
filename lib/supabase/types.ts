@@ -137,8 +137,8 @@ export type Database = {
           reservation_time: string;
           guests: number;
           mesa: number | null;
-          /** Preferencia de area (tras migracion SQL); puede faltar en filas antiguas */
-          area?: "climatizado" | "terraza" | null;
+          /** Restaurante elegido (cbari, la_posada, la_churrasqueria) */
+          area?: "cbari" | "la_posada" | "la_churrasqueria" | null;
           source: "web" | "manual";
           notes: string | null;
           status: "pendiente" | "confirmada" | "cancelada";
@@ -153,7 +153,7 @@ export type Database = {
           reservation_time: string;
           guests: number;
           mesa?: number | null;
-          area?: "climatizado" | "terraza";
+          area?: "cbari" | "la_posada" | "la_churrasqueria";
           source?: "web" | "manual";
           notes?: string | null;
           status?: "pendiente" | "confirmada" | "cancelada";

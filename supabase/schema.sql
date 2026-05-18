@@ -348,18 +348,15 @@ on storage.objects for delete
 to authenticated
 using (bucket_id = 'copantl_assets' and public.is_app_admin());
 
--- Reservas: area (Climatizado / Terraza) y hasta 20 personas (BD existente: ejecutar en Supabase SQL)
+-- Reservas: restaurante (cbari / la_posada / la_churrasqueria) y hasta 20 personas
 alter table public.reservations add column if not exists area text;
-update public.reservations set area = 'climatizado' where area is null;
-alter table public.reservations alter column area set default 'climatizado';
+update public.reservations set area = 'cbari' where area is null or area in ('climatizado', 'terraza');
+alter table public.reservations alter column area set default 'cbari';
 alter table public.reservations alter column area set not null;
 
-do $$
-begin
-  alter table public.reservations add constraint reservations_area_check check (area in ('climatizado', 'terraza'));
-exception
-  when duplicate_object then null;
-end $$;
+alter table public.reservations drop constraint if exists reservations_area_check;
+alter table public.reservations add constraint reservations_area_check
+  check (area in ('cbari', 'la_posada', 'la_churrasqueria'));
 
 alter table public.reservations drop constraint if exists reservations_guests_check;
 alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);

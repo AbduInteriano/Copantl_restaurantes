@@ -1,5 +1,5 @@
 import { FadeIn } from "@/components/fade-in";
-import { FloatingCornerActions } from "@/components/floating-corner-actions";
+import { EventsPanel } from "@/components/events-panel";
 import { GalleryCarousel } from "@/components/gallery-carousel";
 import { HeroLanding } from "@/components/hero-landing";
 import { RestaurantMenusDisplay, type RestaurantMenuImage } from "@/components/restaurant-menus-display";
@@ -95,6 +95,15 @@ export default async function Home() {
           </FadeIn>
         </section>
 
+        <EventsPanel
+          items={eventItems.map((e) => ({
+            id: e.id,
+            title: e.title,
+            image_url: e.image_url,
+          }))}
+          whatsappHref={socialHrefs.whatsappHref}
+        />
+
         <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16 lg:px-6">
           <FadeIn>
             <h2 className="section-title text-4xl">Nuestros menus</h2>
@@ -120,7 +129,6 @@ export default async function Home() {
         />
       </div>
 
-      <FloatingCornerActions items={eventItems} socialHrefs={socialHrefs} />
     </main>
   );
 }

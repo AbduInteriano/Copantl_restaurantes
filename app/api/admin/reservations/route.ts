@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseReservationRestaurant } from "@/lib/restaurants";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,8 +22,7 @@ export async function POST(req: Request) {
   }
 
   const status = payload.status === "pendiente" ? "pendiente" : "confirmada";
-  const area =
-    payload.area === "terraza" || payload.area === "climatizado" ? payload.area : "climatizado";
+  const area = parseReservationRestaurant(payload.area);
   let mesa: number | null = payload.mesa != null && payload.mesa !== "" ? Number(payload.mesa) : null;
 
   if (status === "confirmada") {

@@ -13,6 +13,7 @@ import {
   hasReservationSlotConflict,
   normalizeTimeKey,
 } from "@/lib/reservations";
+import { RESTAURANTS, parseReservationRestaurant } from "@/lib/restaurants";
 import { formatReservationTimeSlotLabel, RESERVATION_TIME_SLOT_VALUES, snapReservationTimeToHalfHour } from "@/lib/reservation-time-slots";
 
 type Reservation = Database["public"]["Tables"]["reservations"]["Row"];
@@ -191,8 +192,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
     const fd = new FormData(e.currentTarget);
     const status = manualStatus;
     const mesaVal = fd.get("mesa");
-    const areaRaw = String(fd.get("area") || "climatizado");
-    const area = areaRaw === "terraza" ? "terraza" : "climatizado";
+    const area = parseReservationRestaurant(String(fd.get("area") || "cbari"));
     const payload = {
       full_name: String(fd.get("full_name") || ""),
       email: String(fd.get("email") || ""),
@@ -299,9 +299,12 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               <input name="email" type="email" required className="rounded-md border bg-transparent p-3" placeholder="Correo" />
               <input name="phone" required className="rounded-md border bg-transparent p-3" placeholder="Telefono" />
               <input name="guests" type="number" min={1} max={MAX_GUESTS_PER_RESERVATION} defaultValue={2} required className="rounded-md border bg-transparent p-3" placeholder="Personas" />
-              <select name="area" className="rounded-md border bg-transparent p-3" defaultValue="climatizado">
-                <option value="climatizado">Area: Climatizado</option>
-                <option value="terraza">Area: Terraza</option>
+              <select name="area" className="rounded-md border bg-transparent p-3" defaultValue="cbari">
+                {RESTAURANTS.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    Restaurante: {r.shortLabel}
+                  </option>
+                ))}
               </select>
               <input
                 name="reservation_date"
@@ -494,7 +497,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                         <span className="text-[var(--foreground-muted)]">Mesa:</span> {r.mesa ?? "—"}
                       </p>
                       <p>
-                        <span className="text-[var(--foreground-muted)]">Area:</span> {formatReservationAreaLong(r.area)}
+                        <span className="text-[var(--foreground-muted)]">Restaurante:</span> {formatReservationAreaLong(r.area)}
                       </p>
                       <p>
                         <span className="text-[var(--foreground-muted)]">Origen:</span>{" "}
@@ -554,7 +557,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                   <strong>Personas:</strong> {editingReservation.guests}
                 </p>
                 <p>
-                  <strong>Area:</strong> {formatReservationAreaLong(editingReservation.area)}
+                  <strong>Restaurante:</strong> {formatReservationAreaLong(editingReservation.area)}
                 </p>
                 <p>
                   <strong>Origen:</strong> {editingReservation.source === "manual" ? "Manual" : "Web"}
@@ -727,7 +730,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Hora</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Cliente</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Pers.</th>
-                    <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Area</th>
+                    <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Restaurante</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Mesa</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Estado</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Origen</th>
@@ -832,7 +835,7 @@ function PendingCard({
         <p><strong>Correo:</strong> {r.email}</p>
         <p><strong>Telefono:</strong> {r.phone}</p>
         <p><strong>Personas:</strong> {r.guests}</p>
-        <p><strong>Area:</strong> {formatReservationAreaLong(r.area)}</p>
+        <p><strong>Restaurante:</strong> {formatReservationAreaLong(r.area)}</p>
         <p><strong>Fecha:</strong> {r.reservation_date}</p>
         <p><strong>Hora:</strong> {normalizeTimeKey(r.reservation_time)}</p>
         <p><strong>Origen:</strong> {r.source === "manual" ? "Manual" : "Web"}</p>

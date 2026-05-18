@@ -106,7 +106,7 @@ export function RestaurantMenusDisplay({ items }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm sm:p-6"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 backdrop-blur-sm sm:p-4"
             onClick={closeModal}
           >
             <motion.div
@@ -114,7 +114,7 @@ export function RestaurantMenusDisplay({ items }: Props) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ type: "spring", stiffness: 320, damping: 28 }}
-              className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+              className="flex max-h-[98vh] w-full max-w-[min(98vw,1400px)] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-6 sm:py-4">
@@ -161,7 +161,7 @@ export function RestaurantMenusDisplay({ items }: Props) {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -24 }}
                           transition={{ duration: 0.22 }}
-                          className="mx-auto block h-auto max-h-[65vh] w-full object-contain"
+                          className="mx-auto block h-auto max-h-[calc(98vh-140px)] w-auto max-w-full object-contain"
                         />
                       </AnimatePresence>
                     </div>
