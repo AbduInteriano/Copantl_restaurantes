@@ -1,29 +1,34 @@
 type BrandLogoProps = {
-  logoUrl?: string | null;
+  logoUrls: [string | null | undefined, string | null | undefined, string | null | undefined];
+  subtitle?: string;
 };
 
-/**
- * Brillo/glow solo en el titulo "CAVA" (sin forma ni sombra detras del logo).
- * Pon `false` para titulo plano. Opcional: borra el bloque en `app/globals.css`.
- */
-export const BRAND_HERO_SHINE_ENABLED = true;
+const logoClass =
+  "h-16 w-auto max-w-[7.5rem] object-contain sm:h-20 sm:max-w-[9rem] md:h-24 md:max-w-[10.5rem]";
 
-const logoBaseClass =
-  "block mx-auto mb-2 h-16 w-16 origin-center scale-[2.2] object-contain sm:h-20 sm:w-20 sm:scale-[2.4] md:h-24 md:w-24 md:scale-[2.76]";
-
-export function BrandLogo({ logoUrl }: BrandLogoProps) {
-  const shine = BRAND_HERO_SHINE_ENABLED;
+export function BrandLogo({ logoUrls, subtitle = "By Copantl" }: BrandLogoProps) {
+  const hasLogos = logoUrls.some(Boolean);
 
   return (
-    <div className={`text-center ${shine ? "brand-hero-shine-wrap" : ""}`}>
-      {logoUrl ? <img src={logoUrl} alt="Logo CAVA" className={logoBaseClass} /> : null}
-      <h1
-        className={`section-title text-5xl tracking-[0.3em] md:text-7xl ${shine ? "brand-hero-title-shine" : "text-[var(--accent-gold)]"}`}
+    <div className="text-center">
+      {hasLogos ? (
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-6 sm:gap-8 md:gap-10">
+          {logoUrls.map((url, index) =>
+            url ? (
+              <img
+                key={index}
+                src={url}
+                alt={`Logo restaurante ${index + 1}`}
+                className={logoClass}
+              />
+            ) : null,
+          )}
+        </div>
+      ) : null}
+      <p
+        className={`text-xs font-medium tracking-[0.35em] text-[var(--accent-gold)] md:text-sm ${hasLogos ? "mt-4 md:mt-5" : ""}`}
       >
-        CAVA
-      </h1>
-      <p className="mt-2 text-xs tracking-[0.35em] text-white md:text-sm">
-        — DRINKS EXPERIENCE —
+        — {subtitle} —
       </p>
     </div>
   );

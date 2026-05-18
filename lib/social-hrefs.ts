@@ -17,8 +17,8 @@ export function resolveSocialHrefs(input: SocialUrlsInput): ResolvedSocialHrefs 
   const whatsappNumber = input.phone.replace(/[^\d]/g, "");
   return {
     whatsappHref: input.whatsappUrl || `https://wa.me/${whatsappNumber}`,
-    instagramHref: input.instagramUrl || "https://www.instagram.com/cava.honduras/",
-    facebookHref: input.facebookUrl || "https://www.facebook.com/Cavahonduras",
-    tiktokHref: input.tiktokUrl || "https://www.tiktok.com/@cavadrinks",
+    instagramHref: input.instagramUrl || "#",
+    facebookHref: input.facebookUrl || "#",
+    tiktokHref: input.tiktokUrl || "#",
   };
 }

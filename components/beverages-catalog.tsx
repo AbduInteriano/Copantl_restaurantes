@@ -52,8 +52,8 @@ export function BeveragesCatalog({ categories }: Props) {
             onClick={() => setSelected((prev) => (prev === family ? null : family))}
             className={`min-w-[96px] shrink-0 rounded-lg border px-2.5 py-2 text-left transition sm:min-w-0 sm:px-3 sm:py-2.5 ${
               selected === family
-                ? "border-[var(--accent-gold)] bg-[var(--accent-burgundy)]/20 text-[var(--accent-gold)]"
-                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent-burgundy)]"
+                ? "border-[var(--accent-gold)] bg-[var(--accent-gold)]/12 text-[var(--accent-gold-dark)]"
+                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent-gold)]"
             }`}
           >
             <p className="section-title text-base leading-tight sm:text-lg">{family}</p>
@@ -82,7 +82,7 @@ export function BeveragesCatalog({ categories }: Props) {
             </div>
 
             {isCocteles ? (
-              <div className="rounded-lg border border-[var(--border)] bg-black/20">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--background-secondary)]">
                 {products.length === 0 ? (
                   <p className="p-4 text-sm text-[var(--foreground-muted)]">No hay cocteles para mostrar.</p>
                 ) : (
@@ -98,7 +98,7 @@ export function BeveragesCatalog({ categories }: Props) {
                             {item.description?.trim() ? item.description : "—"}
                           </p>
                         </div>
-                        <p className="shrink-0 text-lg tabular-nums text-white sm:pt-0.5">L. {Number(item.price).toFixed(2)}</p>
+                        <p className="shrink-0 text-lg tabular-nums text-[var(--accent-gold)] sm:pt-0.5">L. {Number(item.price).toFixed(2)}</p>
                       </li>
                     ))}
                   </ul>
@@ -127,7 +127,7 @@ export function BeveragesCatalog({ categories }: Props) {
                   )}
                 </div>
 
-                <div className="rounded-lg border border-[var(--border)] bg-black/20 p-3">
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--background-secondary)] p-3">
                   {selectedProduct ? (
                     <>
                       {selectedProduct.image_url ? (
@@ -147,7 +147,7 @@ export function BeveragesCatalog({ categories }: Props) {
                             <p className="mt-1 text-sm text-[var(--foreground-muted)]">{selectedProduct.description}</p>
                           )}
                         </div>
-                        <p className="text-lg text-white">L. {Number(selectedProduct.price).toFixed(2)}</p>
+                        <p className="text-lg text-[var(--accent-gold)]">L. {Number(selectedProduct.price).toFixed(2)}</p>
                       </div>
                     </>
                   ) : (

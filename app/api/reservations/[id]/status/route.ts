@@ -65,7 +65,7 @@ export async function PATCH(
     reservation_time: reservationData.reservation_time,
     mesa: mesaLabel,
     message: isConfirmed
-      ? `Tu reservacion ha sido confirmada. Mesa asignada: ${mesaLabel}. Te esperamos en CAVA.`
+      ? `Tu reservacion ha sido confirmada. Mesa asignada: ${mesaLabel}. Te esperamos en Copantl Reservaciones.`
       : "Tu reservacion no pudo ser confirmada en esta ocasion. Puedes escribirnos para nuevas opciones.",
   });
 

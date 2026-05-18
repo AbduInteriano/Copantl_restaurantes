@@ -1,22 +1,10 @@
 import type { Metadata } from "next";
-import { Cardo, Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const cardo = Cardo({
-  variable: "--font-cardo",
-  subsets: ["latin"],
-  weight: ["400"],
-});
-
 export const metadata: Metadata = {
-  title: "CAVA - Drinks Experience",
+  title: "Copantl Reservaciones",
   description:
-    "CAVA es una experiencia premium de vino, destilados y tabaco en San Pedro Sula, Honduras.",
+    "Reserva tu mesa en los restaurantes del Hotel Copantl en San Pedro Sula, Honduras.",
 };
 
 export default function RootLayout({
@@ -25,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} ${cardo.variable} h-full antialiased`}>
+    <html lang="es" className="h-full antialiased">
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

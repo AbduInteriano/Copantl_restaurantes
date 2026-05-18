@@ -1,6 +1,6 @@
-# CAVA - Drink Experience
+# Copantl Reservaciones
 
-Sitio web premium (publico + panel admin) para CAVA en San Pedro Sula, construido con Next.js 14, Tailwind, Framer Motion y Supabase.
+Sitio web premium (publico + panel admin) para reservaciones de restaurantes del Hotel Copantl en San Pedro Sula, construido con Next.js 14, Tailwind, Framer Motion y Supabase.
 
 ## Stack
 

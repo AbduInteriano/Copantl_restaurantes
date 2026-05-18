@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "cava-admin-sidebar-collapsed";
+const STORAGE_KEY = "copantl-admin-sidebar-collapsed";
 
 const navItems = [
   { href: "/admin", label: "Reservas", icon: LayoutDashboard, adminOnly: false },
@@ -69,7 +69,7 @@ export function AdminShell({ children, showAdminNav, roleLabel }: Props) {
             <ChevronLeft size={16} />
           </button>
 
-          <p className="section-title mb-2 text-3xl tracking-[0.2em] text-[var(--admin-brand)]">CAVA</p>
+          <p className="section-title mb-2 text-xl tracking-[0.12em] text-[var(--admin-brand)]">Copantl Reservaciones</p>
           <p className="mb-4 text-xs font-medium text-[var(--admin-muted)]">{roleLabel}</p>
 
           <nav className="space-y-1">

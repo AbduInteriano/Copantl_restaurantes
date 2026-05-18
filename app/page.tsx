@@ -58,12 +58,15 @@ export default async function Home() {
         aria-label="Inicio"
       >
         <FadeIn>
-          <BrandLogo logoUrl={site.logo_url} />
+          <BrandLogo
+            logoUrls={[site.logo_url, site.logo_url_2, site.logo_url_3]}
+            subtitle="By Copantl"
+          />
           <div className="mt-8 w-full max-w-sm px-1 sm:mt-10 sm:max-w-md">
             <ReservationModal
               whatsappHref={socialHrefs.whatsappHref}
-              triggerLabel="Reservar experiencia"
-              triggerClassName="inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl bg-[var(--accent-gold)] px-6 py-3.5 text-center text-base font-semibold leading-tight text-white shadow-[0_6px_28px_rgba(102,14,26,0.55)] ring-2 ring-white/15 transition hover:brightness-110 hover:shadow-[0_10px_36px_rgba(102,14,26,0.65)] active:scale-[0.99] sm:min-h-[52px] sm:px-8 sm:text-lg"
+              triggerLabel="Reservar"
+              triggerClassName="btn-primary min-h-[48px] w-full px-6 py-3.5 text-center text-base leading-tight sm:min-h-[52px] sm:px-8 sm:text-lg"
             />
           </div>
         </FadeIn>
@@ -72,7 +75,7 @@ export default async function Home() {
       <div className="grain-overlay relative">
       <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-10 sm:px-8 sm:py-14 md:grid-cols-2 lg:px-6">
         <FadeIn>
-          <h2 className="section-title text-4xl">La experiencia CAVA</h2>
+          <h2 className="section-title text-4xl">Copantl Reservaciones</h2>
           <div className="gold-divider my-5" />
           <p className="leading-8 text-[var(--foreground-muted)]">{site.about_text}</p>
         </FadeIn>

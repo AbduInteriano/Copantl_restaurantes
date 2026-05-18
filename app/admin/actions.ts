@@ -69,7 +69,6 @@ export async function updateSettings(formData: FormData) {
       id: 1,
       hero_title: String(formData.get("hero_title")),
       hero_subtitle: String(formData.get("hero_subtitle")),
-      logo_url: String(formData.get("logo_url") || "") || null,
       instagram_url: String(formData.get("instagram_url") || "") || null,
       facebook_url: String(formData.get("facebook_url") || "") || null,
       tiktok_url: String(formData.get("tiktok_url") || "") || null,

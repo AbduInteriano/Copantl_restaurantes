@@ -76,7 +76,7 @@ function CategoryCard({ category }: { category: Category }) {
     const storagePath = (() => {
       const url = item.image_url;
       if (!url) return null;
-      const marker = "/storage/v1/object/public/cava-assets/";
+      const marker = "/storage/v1/object/public/copantl_assets/";
       const index = url.indexOf(marker);
       if (index === -1) return null;
       const path = url.slice(index + marker.length);
@@ -88,7 +88,7 @@ function CategoryCard({ category }: { category: Category }) {
       return;
     }
     if (storagePath) {
-      await supabase.storage.from("cava-assets").remove([storagePath]);
+      await supabase.storage.from("copantl_assets").remove([storagePath]);
     }
     router.refresh();
   }
@@ -102,9 +102,9 @@ function CategoryCard({ category }: { category: Category }) {
       let imageUrl: string | null = null;
       if (file) {
         const filePath = `products/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage.from("cava-assets").upload(filePath, file);
+        const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
         if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from("cava-assets").getPublicUrl(filePath);
+        const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
         imageUrl = data.publicUrl;
       }
 
@@ -287,7 +287,7 @@ function ProductEditModal({
 
   function getStoragePathFromPublicUrl(url: string | null): string | null {
     if (!url) return null;
-    const marker = "/storage/v1/object/public/cava-assets/";
+    const marker = "/storage/v1/object/public/copantl_assets/";
     const index = url.indexOf(marker);
     if (index === -1) return null;
     const path = url.slice(index + marker.length);
@@ -301,9 +301,9 @@ function ProductEditModal({
       let imageUrl = item.image_url;
       if (file) {
         const filePath = `products/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage.from("cava-assets").upload(filePath, file);
+        const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
         if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from("cava-assets").getPublicUrl(filePath);
+        const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
         imageUrl = data.publicUrl;
       }
 
@@ -343,7 +343,7 @@ function ProductEditModal({
         return;
       }
       if (storagePath) {
-        await supabase.storage.from("cava-assets").remove([storagePath]);
+        await supabase.storage.from("copantl_assets").remove([storagePath]);
       }
       onSaved();
     } finally {

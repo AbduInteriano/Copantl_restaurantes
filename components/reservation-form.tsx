@@ -179,12 +179,12 @@ export function ReservationBookingForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-md bg-[var(--accent-gold)] px-4 py-3 font-medium text-[var(--foreground)] transition hover:opacity-95 disabled:opacity-60"
+        className="btn-primary w-full px-4 py-3 disabled:opacity-60"
       >
-        {isSubmitting ? "Enviando..." : "Reservar ahora"}
+        {isSubmitting ? "Enviando..." : "Reservar"}
       </button>
       {status && !onSuccess ? <p className="text-sm text-[var(--foreground-muted)]">{status}</p> : null}
-      {status && onSuccess ? <p className="text-sm text-red-300/90">{status}</p> : null}
+      {status && onSuccess ? <p className="text-sm text-red-700">{status}</p> : null}
     </form>
   );
 }

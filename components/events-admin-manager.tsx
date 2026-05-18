@@ -31,9 +31,9 @@ export function EventsAdminManager({ items }: Props) {
     setStatus("");
     try {
       const filePath = `events/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("cava-assets").upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from("cava-assets").getPublicUrl(filePath);
+      const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
 
       const { error: insertError } = await supabase.from("event_banners").insert({
         title: null,

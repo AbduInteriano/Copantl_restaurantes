@@ -161,6 +161,8 @@ export type Database = {
           hero_title: string;
           hero_subtitle: string;
           logo_url: string | null;
+          logo_url_2: string | null;
+          logo_url_3: string | null;
           instagram_url: string | null;
           facebook_url: string | null;
           tiktok_url: string | null;
@@ -177,6 +179,8 @@ export type Database = {
           hero_title: string;
           hero_subtitle: string;
           logo_url?: string | null;
+          logo_url_2?: string | null;
+          logo_url_3?: string | null;
           instagram_url?: string | null;
           facebook_url?: string | null;
           tiktok_url?: string | null;
