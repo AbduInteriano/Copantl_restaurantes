@@ -7,25 +7,77 @@ import { createClient } from "@/lib/supabase/client";
 
 const POLL_MS = 8_000;
 
-function playSoftAlertTone() {
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(740, ctx.currentTime);
-    gain.gain.setValueAtTime(0.06, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.35);
-    void ctx.resume();
-  } catch {
-    /* ignore */
+/** Cuatro "tin" ascendentes, ~4 s en total. */
+const CHIME_NOTES_HZ = [784, 988, 1175, 1568];
+const CHIME_NOTE_DURATION_S = 0.6;
+const CHIME_GAP_S = 1.05;
+const CHIME_PEAK_GAIN = 0.28;
+
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return null;
+  if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
+    sharedAudioCtx = new Ctx();
   }
+  return sharedAudioCtx;
+}
+
+async function ensureAudioReady(): Promise<AudioContext | null> {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
+  if (ctx.state === "suspended") {
+    try {
+      await ctx.resume();
+    } catch {
+      return null;
+    }
+  }
+  return ctx.state === "running" ? ctx : null;
+}
+
+function playReservationChime() {
+  void (async () => {
+    const ctx = await ensureAudioReady();
+    if (!ctx) return;
+
+    const start = ctx.currentTime + 0.02;
+
+    CHIME_NOTES_HZ.forEach((freq, index) => {
+      const t0 = start + index * CHIME_GAP_S;
+      const tEnd = t0 + CHIME_NOTE_DURATION_S;
+
+      const osc = ctx.createOscillator();
+      const harmonic = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const mix = ctx.createGain();
+
+      osc.type = "sine";
+      harmonic.type = "triangle";
+      osc.frequency.setValueAtTime(freq, t0);
+      harmonic.frequency.setValueAtTime(freq * 2, t0);
+
+      mix.gain.setValueAtTime(1, t0);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(CHIME_PEAK_GAIN, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, tEnd);
+
+      osc.connect(mix);
+      harmonic.connect(mix);
+      mix.gain.value = 0.65;
+      mix.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(t0);
+      harmonic.start(t0);
+      osc.stop(tEnd + 0.05);
+      harmonic.stop(tEnd + 0.05);
+    });
+  })();
 }
 
 function notifyNewPending(
@@ -40,13 +92,25 @@ function notifyNewPending(
   if (knownIdsRef.current.has(id)) return;
   knownIdsRef.current.add(id);
   setToast({ id, name: fullName });
-  playSoftAlertTone();
+  playReservationChime();
 }
 
 export function AdminNewReservationNotify() {
   const [toast, setToast] = useState<{ id: string; name: string } | null>(null);
   const knownIdsRef = useRef<Set<string> | null>(null);
   const mountedRef = useRef(true);
+
+  useEffect(() => {
+    const unlock = () => {
+      void ensureAudioReady();
+    };
+    document.addEventListener("pointerdown", unlock);
+    document.addEventListener("keydown", unlock);
+    return () => {
+      document.removeEventListener("pointerdown", unlock);
+      document.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
