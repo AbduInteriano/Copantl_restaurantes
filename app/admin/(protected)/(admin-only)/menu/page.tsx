@@ -1,41 +1,27 @@
-import { ProductsAdminManager } from "@/components/products-admin-manager";
+import {
+  RestaurantMenusAdminManager,
+  type RestaurantMenuRow,
+} from "@/components/restaurant-menus-admin-manager";
 import { createClient } from "@/lib/supabase/server";
-import type { Database } from "@/lib/supabase/types";
-
-type CategoryWithItems = Database["public"]["Tables"]["menu_categories"]["Row"] & {
-  menu_items: Database["public"]["Tables"]["menu_items"]["Row"][];
-};
-
-export default async function AdminMenuPage() {
+export default async function MenusAdminPage() {
   const supabase = createClient();
-  const beverageFamilies = [
-    { name: "Vino", sort_order: 1 },
-    { name: "Ron", sort_order: 2 },
-    { name: "Whisky", sort_order: 3 },
-    { name: "Ginebra", sort_order: 4 },
-    { name: "Tequila", sort_order: 5 },
-  ];
-
-  await supabase.from("menu_categories").upsert(
-    beverageFamilies.map((family) => ({
-      ...family,
-      product_type: "bebidas",
-      is_active: true,
-    })) as never,
-    { onConflict: "name,product_type" },
-  );
-
-  const { data: categories } = await supabase
-    .from("menu_categories")
-    .select("*, menu_items(*)")
-    .eq("product_type", "bebidas")
+  const { data } = await supabase
+    .from("restaurant_menu_images")
+    .select("id, restaurant, image_url, sort_order, is_active")
+    .eq("is_active", true)
     .order("sort_order", { ascending: true });
-  const menuCategories = (categories ?? []) as CategoryWithItems[];
+
+  const items = (data ?? []) as RestaurantMenuRow[];
 
   return (
     <div className="space-y-6">
-      <h1 className="section-title text-4xl">Gestion de Productos</h1>
-      <ProductsAdminManager categories={menuCategories} />
+      <div>
+        <h1 className="section-title text-4xl">Menus por restaurante</h1>
+        <p className="mt-2 text-sm text-[var(--admin-muted)]">
+          Sube las paginas del menu en imagen para La Churrasqueria, La Posada y Cbari.
+        </p>
+      </div>
+      <RestaurantMenusAdminManager items={items} />
     </div>
   );
 }

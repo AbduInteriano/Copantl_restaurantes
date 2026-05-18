@@ -12,17 +12,6 @@ async function ensureAdmin() {
   }
 }
 
-export async function createCategory(formData: FormData) {
-  await ensureAdmin();
-  const supabase = createClient();
-  await supabase.from("menu_categories").insert({
-    name: String(formData.get("name")),
-    sort_order: Number(formData.get("sort_order") ?? 0),
-  } as never);
-  revalidatePath("/admin/menu");
-  revalidatePath("/");
-}
-
 export async function createPromotion(formData: FormData) {
   await ensureAdmin();
   const supabase = createClient();
@@ -32,20 +21,6 @@ export async function createPromotion(formData: FormData) {
     is_active: true,
   } as never);
   revalidatePath("/admin/promociones");
-  revalidatePath("/");
-}
-
-export async function createMenuItem(formData: FormData) {
-  await ensureAdmin();
-  const supabase = createClient();
-  await supabase.from("menu_items").insert({
-    category_id: String(formData.get("category_id")),
-    name: String(formData.get("name")),
-    description: String(formData.get("description") || ""),
-    price: Number(formData.get("price") ?? 0),
-    is_active: true,
-  } as never);
-  revalidatePath("/admin/menu");
   revalidatePath("/");
 }
 

@@ -18,7 +18,7 @@ const STORAGE_KEY = "copantl-admin-sidebar-collapsed";
 
 const navItems = [
   { href: "/admin", label: "Reservas", icon: LayoutDashboard, adminOnly: false },
-  { href: "/admin/menu", label: "Productos", icon: UtensilsCrossed, adminOnly: true },
+  { href: "/admin/menu", label: "Menus", icon: UtensilsCrossed, adminOnly: true },
   { href: "/admin/eventos", label: "Eventos", icon: CalendarHeart, adminOnly: true },
   { href: "/admin/galeria", label: "Galeria", icon: Images, adminOnly: true },
   { href: "/admin/configuracion", label: "Configuracion", icon: Settings, adminOnly: true },

@@ -1,5 +1,4 @@
 import { updateSettings } from "@/app/admin/actions";
-import { SiteLogosSettings } from "@/components/site-logos-settings";
 import { fallbackSettings } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,11 +11,16 @@ export default async function ConfiguracionPage() {
     <div className="space-y-6">
       <h1 className="section-title text-4xl">Configuracion del Sitio</h1>
 
-      <SiteLogosSettings
-        logoUrl={settings.logo_url}
-        logoUrl2={settings.logo_url_2 ?? null}
-        logoUrl3={settings.logo_url_3 ?? null}
-      />
+      <div className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 text-sm text-[var(--admin-muted)]">
+        <p className="font-medium text-[var(--admin-foreground)]">Logos del inicio</p>
+        <p className="mt-2">
+          Los 3 logos del hero se cargan desde la carpeta{" "}
+          <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">web/public/logos/</code>. Coloca alli{" "}
+          <code className="rounded bg-slate-100 px-1">la-churrasqueria.png</code>,{" "}
+          <code className="rounded bg-slate-100 px-1">la-posada.png</code> y{" "}
+          <code className="rounded bg-slate-100 px-1">cbari.png</code> (tambien JPG o WebP).
+        </p>
+      </div>
 
       <form action={updateSettings} className="space-y-4 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-sm">
         <input

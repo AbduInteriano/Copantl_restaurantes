@@ -92,6 +92,22 @@ create table if not exists public.gallery_items (
 
 do $$
 begin
+  create type public.restaurant_key as enum ('la_churrasqueria', 'la_posada', 'cbari');
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.restaurant_menu_images (
+  id uuid primary key default gen_random_uuid(),
+  restaurant public.restaurant_key not null,
+  image_url text not null,
+  sort_order int not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+do $$
+begin
   create type reservation_status as enum ('pendiente', 'confirmada', 'cancelada');
 exception
   when duplicate_object then null;
@@ -194,6 +210,7 @@ alter table public.menu_items enable row level security;
 alter table public.promotions enable row level security;
 alter table public.event_banners enable row level security;
 alter table public.gallery_items enable row level security;
+alter table public.restaurant_menu_images enable row level security;
 alter table public.reservations enable row level security;
 
 drop policy if exists "Public read categories" on public.menu_categories;
@@ -207,6 +224,9 @@ create policy "Public read promotions" on public.promotions for select using (is
 
 drop policy if exists "Public read gallery" on public.gallery_items;
 create policy "Public read gallery" on public.gallery_items for select using (is_active = true);
+
+drop policy if exists "Public read restaurant menus" on public.restaurant_menu_images;
+create policy "Public read restaurant menus" on public.restaurant_menu_images for select using (is_active = true);
 
 drop policy if exists "Public read event banners" on public.event_banners;
 create policy "Public read event banners" on public.event_banners for select using (is_active = true);
@@ -244,6 +264,11 @@ using (public.is_app_admin()) with check (public.is_app_admin());
 drop policy if exists "Admin full access gallery" on public.gallery_items;
 drop policy if exists "Admin manage gallery" on public.gallery_items;
 create policy "Admin manage gallery" on public.gallery_items
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "Admin manage restaurant menus" on public.restaurant_menu_images;
+create policy "Admin manage restaurant menus" on public.restaurant_menu_images
 for all to authenticated
 using (public.is_app_admin()) with check (public.is_app_admin());
 

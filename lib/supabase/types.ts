@@ -22,6 +22,25 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["gallery_items"]["Insert"]>;
       };
+      restaurant_menu_images: {
+        Row: {
+          id: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          image_url: string;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          image_url: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["restaurant_menu_images"]["Insert"]>;
+      };
       menu_categories: {
         Row: {
           id: string;
