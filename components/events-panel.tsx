@@ -1,18 +1,13 @@
 "use client";
 
+import { EventsCalendarView, type CalendarEventItem } from "@/components/events-calendar-view";
 import { ReservationBookingForm } from "@/components/reservation-form";
 import { ReservationSuccessActions } from "@/components/reservation-success-actions";
 import { CalendarDays, CalendarHeart, ChevronLeft, ChevronRight, X, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-
-type EventItem = {
-  id: string;
-  title: string | null;
-  image_url: string;
-};
+import { useEffect, useState } from "react";
 
 type Props = {
-  items: EventItem[];
+  items: CalendarEventItem[];
   whatsappHref: string;
 };
 
@@ -22,18 +17,7 @@ export function EventsPanel({ items, whatsappHref }: Props) {
   const [open, setOpen] = useState(false);
   const [sheetView, setSheetView] = useState<SheetView>("events");
   const [reserveKey, setReserveKey] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selected = selectedIndex !== null ? items[selectedIndex] : null;
-  const isTwoOrLess = items.length <= 2;
-  const containerWidthClass = items.length <= 1 ? "max-w-md" : items.length === 2 ? "max-w-3xl" : "max-w-5xl";
-
-  const monthLabel = useMemo(
-    () =>
-      new Intl.DateTimeFormat("es-HN", { month: "long", year: "numeric" })
-        .format(new Date())
-        .replace(/^\w/, (c) => c.toUpperCase()),
-    [],
-  );
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -42,16 +26,16 @@ export function EventsPanel({ items, whatsappHref }: Props) {
   }, [open]);
 
   useEffect(() => {
-    document.body.style.overflow = open || selectedIndex !== null ? "hidden" : "";
+    document.body.style.overflow = open || selectedEvent ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [open, selectedIndex]);
+  }, [open, selectedEvent]);
 
   function closeAll() {
     setOpen(false);
     setSheetView("events");
-    setSelectedIndex(null);
+    setSelectedEvent(null);
   }
 
   function openReserveFromEvents() {
@@ -61,13 +45,17 @@ export function EventsPanel({ items, whatsappHref }: Props) {
   }
 
   function showPrev() {
-    if (selectedIndex === null || items.length === 0) return;
-    setSelectedIndex((selectedIndex - 1 + items.length) % items.length);
+    if (!selectedEvent || items.length === 0) return;
+    const idx = items.findIndex((i) => i.id === selectedEvent.id);
+    if (idx < 0) return;
+    setSelectedEvent(items[(idx - 1 + items.length) % items.length]);
   }
 
   function showNext() {
-    if (selectedIndex === null || items.length === 0) return;
-    setSelectedIndex((selectedIndex + 1) % items.length);
+    if (!selectedEvent || items.length === 0) return;
+    const idx = items.findIndex((i) => i.id === selectedEvent.id);
+    if (idx < 0) return;
+    setSelectedEvent(items[(idx + 1) % items.length]);
   }
 
   return (
@@ -86,9 +74,7 @@ export function EventsPanel({ items, whatsappHref }: Props) {
 
       {open && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-3 backdrop-blur-[3px] sm:p-6">
-          <div
-            className={`mx-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl shadow-black/50 ring-1 ring-[var(--accent-gold)]/15 sm:p-1 ${containerWidthClass}`}
-          >
+          <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl shadow-black/50 ring-1 ring-[var(--accent-gold)]/15 sm:p-1">
             <div className="rounded-xl bg-[var(--background-secondary)]/40 p-4 sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
@@ -108,12 +94,12 @@ export function EventsPanel({ items, whatsappHref }: Props) {
                   )}
                   <div>
                     <h3 className="section-title truncate text-2xl sm:text-3xl">
-                      {sheetView === "events" && "Proximos eventos"}
+                      {sheetView === "events" && "Calendario de eventos"}
                       {sheetView === "reserve" && "Reservar"}
                       {sheetView === "success" && "Listo"}
                     </h3>
                     {sheetView === "events" ? (
-                      <p className="text-sm capitalize text-[var(--foreground-muted)]">{monthLabel}</p>
+                      <p className="text-sm text-[var(--foreground-muted)]">Selecciona un dia para ver los eventos</p>
                     ) : null}
                   </div>
                 </div>
@@ -130,33 +116,9 @@ export function EventsPanel({ items, whatsappHref }: Props) {
               {sheetView === "events" && (
                 <>
                   {items.length === 0 ? (
-                    <p className="text-[var(--foreground-muted)]">Aun no hay banners de eventos cargados.</p>
+                    <p className="text-[var(--foreground-muted)]">Aun no hay eventos cargados.</p>
                   ) : (
-                    <div
-                      className={`grid gap-3 sm:gap-4 ${isTwoOrLess ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-3"}`}
-                    >
-                      {items.map((item, index) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setSelectedIndex(index)}
-                          className="group rounded-xl border border-[var(--border)] bg-[var(--surface)] text-left shadow-sm ring-1 ring-transparent transition hover:border-[var(--accent-gold)]/40 hover:ring-[var(--accent-gold)]/20"
-                        >
-                          <div className="aspect-[4/3] overflow-hidden rounded-t-xl bg-[var(--background-secondary)]">
-                            <img
-                              src={item.image_url}
-                              alt={item.title ?? "Banner de evento"}
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-                            />
-                          </div>
-                          {item.title ? (
-                            <p className="border-t border-[var(--border)]/60 px-3 py-2 text-sm text-[var(--foreground-muted)]">{item.title}</p>
-                          ) : (
-                            <div className="h-px border-t border-[var(--border)]/60" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                    <EventsCalendarView items={items} onSelectEvent={setSelectedEvent} />
                   )}
 
                   <div className="mt-6 flex flex-col gap-3 border-t border-[var(--border)]/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -198,39 +160,47 @@ export function EventsPanel({ items, whatsappHref }: Props) {
         </div>
       )}
 
-      {selected && (
+      {selectedEvent && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-2 backdrop-blur-sm sm:p-4">
           <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl ring-1 ring-[var(--accent-gold)]/15">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-3 sm:px-4">
-              <p className="section-title text-xl sm:text-2xl">Eventos</p>
+              <p className="section-title text-xl sm:text-2xl">{selectedEvent.title ?? "Evento"}</p>
               <button
                 type="button"
-                onClick={() => setSelectedIndex(null)}
+                onClick={() => setSelectedEvent(null)}
                 className="rounded-lg border border-[var(--border)] p-2 text-[var(--foreground-muted)] hover:bg-[var(--background-secondary)]"
               >
                 <X size={18} />
               </button>
             </div>
             <div className="flex items-center gap-2 bg-[var(--background-secondary)]/50 p-2 sm:p-3">
-              <button type="button" onClick={showPrev} className="shrink-0 rounded-lg border border-[var(--border)] p-2 hover:bg-[var(--surface)]">
-                <ChevronLeft size={18} />
-              </button>
+              {items.length > 1 ? (
+                <button type="button" onClick={showPrev} className="shrink-0 rounded-lg border border-[var(--border)] p-2 hover:bg-[var(--surface)]">
+                  <ChevronLeft size={18} />
+                </button>
+              ) : (
+                <span className="w-10 shrink-0" />
+              )}
               <div className="flex-1 overflow-auto">
                 <img
-                  src={selected.image_url}
-                  alt={selected.title ?? "Banner de evento"}
+                  src={selectedEvent.image_url}
+                  alt={selectedEvent.title ?? "Banner de evento"}
                   className="mx-auto h-auto max-h-[65vh] w-auto rounded-lg object-contain"
                 />
               </div>
-              <button type="button" onClick={showNext} className="shrink-0 rounded-lg border border-[var(--border)] p-2 hover:bg-[var(--surface)]">
-                <ChevronRight size={18} />
-              </button>
+              {items.length > 1 ? (
+                <button type="button" onClick={showNext} className="shrink-0 rounded-lg border border-[var(--border)] p-2 hover:bg-[var(--surface)]">
+                  <ChevronRight size={18} />
+                </button>
+              ) : (
+                <span className="w-10 shrink-0" />
+              )}
             </div>
             <div className="flex flex-col gap-3 border-t border-[var(--border)] p-4 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedIndex(null);
+                  setSelectedEvent(null);
                   openReserveFromEvents();
                 }}
                 className="btn-primary w-full px-6 py-3 text-center text-sm sm:w-auto"

@@ -32,6 +32,7 @@ export default async function Home() {
       .from("event_banners")
       .select("*")
       .eq("is_active", true)
+      .order("event_date", { ascending: true, nullsFirst: false })
       .order("sort_order", { ascending: true }),
   ]);
 
@@ -100,6 +101,7 @@ export default async function Home() {
             id: e.id,
             title: e.title,
             image_url: e.image_url,
+            event_date: e.event_date ?? null,
           }))}
           whatsappHref={socialHrefs.whatsappHref}
         />

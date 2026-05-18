@@ -113,6 +113,7 @@ export type Database = {
           id: string;
           title: string | null;
           image_url: string;
+          event_date: string | null;
           sort_order: number;
           is_active: boolean;
           created_at: string;
@@ -121,6 +122,7 @@ export type Database = {
           id?: string;
           title?: string | null;
           image_url: string;
+          event_date?: string | null;
           sort_order?: number;
           is_active?: boolean;
           created_at?: string;

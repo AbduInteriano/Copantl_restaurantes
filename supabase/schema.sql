@@ -80,6 +80,7 @@ create table if not exists public.event_banners (
   created_at timestamptz not null default now()
 );
 alter table public.event_banners alter column title drop not null;
+alter table public.event_banners add column if not exists event_date date;
 
 create table if not exists public.gallery_items (
   id uuid primary key default gen_random_uuid(),
