@@ -1,8 +1,7 @@
-import { BrandLogo } from "@/components/brand-logo";
 import { FadeIn } from "@/components/fade-in";
 import { FloatingCornerActions } from "@/components/floating-corner-actions";
-import { ImageGridModal } from "@/components/image-grid-modal";
-import { ReservationModal } from "@/components/reservation-modal";
+import { GalleryCarousel } from "@/components/gallery-carousel";
+import { HeroLanding } from "@/components/hero-landing";
 import { RestaurantMenusDisplay, type RestaurantMenuImage } from "@/components/restaurant-menus-display";
 import { SiteFooter } from "@/components/site-footer";
 import { fallbackSettings } from "@/lib/data";
@@ -11,6 +10,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { RestaurantKey } from "@/lib/restaurants";
 import { CalendarDays, MapPin, Wine } from "lucide-react";
+
+const GALLERY_MAX = 10;
 
 export default async function Home() {
   const supabase = createClient();
@@ -23,9 +24,9 @@ export default async function Home() {
       .order("sort_order", { ascending: true }),
     supabase
       .from("gallery_items")
-      .select("*")
+      .select("id, image_url, title")
       .eq("is_active", true)
-      .limit(8)
+      .limit(GALLERY_MAX)
       .order("sort_order", { ascending: true }),
     supabase
       .from("event_banners")
@@ -43,7 +44,14 @@ export default async function Home() {
       sort_order: row.sort_order,
     }),
   ) satisfies RestaurantMenuImage[];
-  const galleryItems = (gallery ?? []) as Database["public"]["Tables"]["gallery_items"]["Row"][];
+  const galleryItems = ((gallery ?? []) as Pick<
+    Database["public"]["Tables"]["gallery_items"]["Row"],
+    "id" | "image_url" | "title"
+  >[]).map((g) => ({
+    id: g.id,
+    image_url: g.image_url,
+    title: g.title,
+  }));
   const eventItems = (events ?? []) as Database["public"]["Tables"]["event_banners"]["Row"][];
   const socialHrefs = resolveSocialHrefs({
     phone: site.phone,
@@ -56,18 +64,11 @@ export default async function Home() {
   return (
     <main className="overflow-x-hidden">
       <section
-        className="mobile-landing-hero relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center justify-center px-5 text-center sm:min-h-[78vh] sm:px-8 lg:px-6"
+        className="mobile-landing-hero relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center justify-center px-5 py-10 text-center sm:min-h-[78vh] sm:px-8 sm:py-12 lg:px-6"
         aria-label="Inicio"
       >
         <FadeIn>
-          <BrandLogo subtitle="By Copantl" />
-          <div className="mt-8 w-full max-w-sm px-1 sm:mt-10 sm:max-w-md">
-            <ReservationModal
-              whatsappHref={socialHrefs.whatsappHref}
-              triggerLabel="Reservar"
-              triggerClassName="btn-primary min-h-[48px] w-full px-6 py-3.5 text-center text-base leading-tight sm:min-h-[52px] sm:px-8 sm:text-lg"
-            />
-          </div>
+          <HeroLanding subtitle="By Copantl" whatsappHref={socialHrefs.whatsappHref} />
         </FadeIn>
       </section>
 
@@ -98,17 +99,16 @@ export default async function Home() {
           <FadeIn>
             <h2 className="section-title text-4xl">Nuestros menus</h2>
             <p className="mt-3 max-w-2xl text-[var(--foreground-muted)]">
-              Consulta el menu de cada restaurante. Desliza hacia abajo para ver todas las paginas.
+              Elige un restaurante para ver su menu completo.
             </p>
           </FadeIn>
           <RestaurantMenusDisplay items={menus} />
         </section>
 
-        <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16 lg:px-6">
+        <section className="mx-auto w-full max-w-6xl px-5 pb-12 sm:px-8 sm:pb-16 lg:px-6">
           <FadeIn>
-            <h2 className="section-title text-4xl">Galeria</h2>
+            <GalleryCarousel items={galleryItems} />
           </FadeIn>
-          <ImageGridModal title="Galeria" items={galleryItems} />
         </section>
 
         <SiteFooter

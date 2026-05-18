@@ -1,22 +1,23 @@
-# Logos del sitio (hero)
+# Logo del hero (imagen unica)
 
-Coloca aquí los 3 logos de tus restaurantes. El sitio los carga automáticamente desde esta carpeta (no hace falta el panel de administración).
+Coloca **una sola imagen rectangular** con los tres logos ya centrados y a tamano correcto.
 
-## Archivos requeridos
+## Archivo
 
-Usa **uno** de estos formatos por restaurante: `.png`, `.jpg`, `.webp` o `.svg`
+Guarda la imagen en esta carpeta con uno de estos nombres:
 
-| Archivo (ejemplo) | Restaurante |
-|-------------------|-------------|
-| `la-churrasqueria.png` | La Churrasquería |
-| `la-posada.png` | La Posada |
-| `cbari.png` | Cbari |
+| Nombre preferido | Alternativas |
+|------------------|--------------|
+| `restaurantes.png` | `logos-banner.png`, `hero-logos.png`, `logos.png` |
 
-## Pasos
+Formatos: PNG, JPG, WebP o SVG.
 
-1. Copia tus imágenes PNG a esta carpeta (`web/public/logos/`).
-2. Renómbralas exactamente como en la tabla (minúsculas, con guiones).
-3. Reinicia el servidor de desarrollo si ya estaba corriendo.
-4. Recarga la página de inicio.
+## Ejemplo
 
-Los menús en imagen se gestionan en **Admin → Menus**.
+```
+web/public/logos/restaurantes.png
+```
+
+Reinicia el servidor de desarrollo y recarga la pagina de inicio.
+
+Los menus y el carrusel de fotos se gestionan en **Admin → Menus** y **Admin → Galeria**.

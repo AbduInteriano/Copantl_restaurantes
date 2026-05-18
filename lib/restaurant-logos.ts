@@ -1,26 +1,12 @@
 /**
- * Logos del hero: coloca los archivos en web/public/logos/
- * Nombres esperados (PNG, JPG o WebP):
- *   - la-churrasqueria.*
- *   - la-posada.*
- *   - cbari.*
+ * Imagen unica del hero (rectangular, logos ya compuestos).
+ * Coloca el archivo en web/public/logos/ con uno de estos nombres:
+ *   restaurantes.png | logos-banner.png | hero-logos.png | logos.png
+ * (tambien .jpg, .webp, .svg)
  */
-export const RESTAURANT_LOGO_FILES = [
-  { baseName: "la-churrasqueria", alt: "La Churrasqueria" },
-  { baseName: "la-posada", alt: "La Posada" },
-  { baseName: "cbari", alt: "Cbari" },
-] as const;
-
+const BANNER_BASE_NAMES = ["restaurantes", "logos-banner", "hero-logos", "logos"] as const;
 const EXTENSIONS = [".png", ".webp", ".jpg", ".jpeg", ".svg"] as const;
 
-export function getRestaurantLogoPaths() {
-  return RESTAURANT_LOGO_FILES.map(({ baseName, alt }) => {
-    const src = EXTENSIONS.map((ext) => `/logos/${baseName}${ext}`).join("|");
-    return {
-      alt,
-      /** Rutas a probar en el cliente; el componente usa la primera existente vía img onError o lista fija */
-      candidates: EXTENSIONS.map((ext) => `/logos/${baseName}${ext}`),
-      defaultSrc: `/logos/${baseName}.png`,
-    };
-  });
+export function getHeroBannerCandidates(): string[] {
+  return BANNER_BASE_NAMES.flatMap((name) => EXTENSIONS.map((ext) => `/logos/${name}${ext}`));
 }

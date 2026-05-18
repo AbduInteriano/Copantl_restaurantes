@@ -12,13 +12,11 @@ export default async function ConfiguracionPage() {
       <h1 className="section-title text-4xl">Configuracion del Sitio</h1>
 
       <div className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 text-sm text-[var(--admin-muted)]">
-        <p className="font-medium text-[var(--admin-foreground)]">Logos del inicio</p>
+        <p className="font-medium text-[var(--admin-foreground)]">Logo del inicio</p>
         <p className="mt-2">
-          Los 3 logos del hero se cargan desde la carpeta{" "}
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">web/public/logos/</code>. Coloca alli{" "}
-          <code className="rounded bg-slate-100 px-1">la-churrasqueria.png</code>,{" "}
-          <code className="rounded bg-slate-100 px-1">la-posada.png</code> y{" "}
-          <code className="rounded bg-slate-100 px-1">cbari.png</code> (tambien JPG o WebP).
+          Una sola imagen rectangular (logos ya compuestos) en{" "}
+          <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">web/public/logos/</code> con nombre{" "}
+          <code className="rounded bg-slate-100 px-1">restaurantes.png</code> (o logos-banner, hero-logos, logos).
         </p>
       </div>
 
