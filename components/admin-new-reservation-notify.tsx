@@ -1,140 +1,125 @@
 "use client";
 
-import { Bell, X } from "lucide-react";
+import { Bell, CalendarDays, Users, X } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import {
+  attachReservationChimeUnlock,
+  playReservationChime,
+  unlockReservationChime,
+} from "@/lib/reservation-chime-audio";
+import { formatReservationTimeSlotLabel } from "@/lib/reservation-time-slots";
 import { createClient } from "@/lib/supabase/client";
 
 const POLL_MS = 8_000;
 
-/** Cuatro "tin" ascendentes, ~4 s en total. */
-const CHIME_NOTES_HZ = [784, 988, 1175, 1568];
-const CHIME_NOTE_DURATION_S = 0.6;
-const CHIME_GAP_S = 1.05;
-const CHIME_PEAK_GAIN = 0.28;
+type PendingReservationSummary = {
+  id: string;
+  full_name: string;
+  guests: number;
+  reservation_date: string;
+  reservation_time: string;
+};
 
-let sharedAudioCtx: AudioContext | null = null;
+type PendingAlert = {
+  latest: PendingReservationSummary;
+  pendingCount: number;
+};
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  const Ctx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Ctx) return null;
-  if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
-    sharedAudioCtx = new Ctx();
-  }
-  return sharedAudioCtx;
+type PendingRow = PendingReservationSummary & { created_at: string };
+
+function formatReservationDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return dateStr;
+  return new Date(y, m - 1, d).toLocaleDateString("es-HN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
-async function ensureAudioReady(): Promise<AudioContext | null> {
-  const ctx = getAudioContext();
-  if (!ctx) return null;
-  if (ctx.state === "suspended") {
-    try {
-      await ctx.resume();
-    } catch {
-      return null;
-    }
-  }
-  return ctx.state === "running" ? ctx : null;
+function formatReservationTime(timeStr: string): string {
+  const match = /^(\d{1,2}):(\d{2})/.exec(timeStr);
+  if (!match) return timeStr;
+  return formatReservationTimeSlotLabel(`${match[1].padStart(2, "0")}:${match[2]}`);
 }
 
-function playReservationChime() {
-  void (async () => {
-    const ctx = await ensureAudioReady();
-    if (!ctx) return;
-
-    const start = ctx.currentTime + 0.02;
-
-    CHIME_NOTES_HZ.forEach((freq, index) => {
-      const t0 = start + index * CHIME_GAP_S;
-      const tEnd = t0 + CHIME_NOTE_DURATION_S;
-
-      const osc = ctx.createOscillator();
-      const harmonic = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const mix = ctx.createGain();
-
-      osc.type = "sine";
-      harmonic.type = "triangle";
-      osc.frequency.setValueAtTime(freq, t0);
-      harmonic.frequency.setValueAtTime(freq * 2, t0);
-
-      mix.gain.setValueAtTime(1, t0);
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.linearRampToValueAtTime(CHIME_PEAK_GAIN, t0 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, tEnd);
-
-      osc.connect(mix);
-      harmonic.connect(mix);
-      mix.gain.value = 0.65;
-      mix.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(t0);
-      harmonic.start(t0);
-      osc.stop(tEnd + 0.05);
-      harmonic.stop(tEnd + 0.05);
-    });
-  })();
+function rowFromPayload(raw: Record<string, unknown>): PendingReservationSummary | null {
+  const id = typeof raw.id === "string" ? raw.id : null;
+  const full_name = typeof raw.full_name === "string" ? raw.full_name : null;
+  if (!id || !full_name) return null;
+  return {
+    id,
+    full_name,
+    guests: typeof raw.guests === "number" ? raw.guests : Number(raw.guests) || 1,
+    reservation_date: typeof raw.reservation_date === "string" ? raw.reservation_date : "",
+    reservation_time: typeof raw.reservation_time === "string" ? raw.reservation_time : "",
+  };
 }
 
 function notifyNewPending(
-  id: string,
-  fullName: string,
+  latest: PendingReservationSummary,
+  pendingCount: number,
   knownIdsRef: MutableRefObject<Set<string> | null>,
-  setToast: (t: { id: string; name: string } | null) => void,
+  setAlert: (a: PendingAlert | null) => void,
 ) {
   if (!knownIdsRef.current) {
     knownIdsRef.current = new Set();
   }
-  if (knownIdsRef.current.has(id)) return;
-  knownIdsRef.current.add(id);
-  setToast({ id, name: fullName });
-  playReservationChime();
+  if (knownIdsRef.current.has(latest.id)) return;
+  knownIdsRef.current.add(latest.id);
+  setAlert({ latest, pendingCount });
+  void playReservationChime();
 }
 
 export function AdminNewReservationNotify() {
-  const [toast, setToast] = useState<{ id: string; name: string } | null>(null);
+  const [alert, setAlert] = useState<PendingAlert | null>(null);
   const knownIdsRef = useRef<Set<string> | null>(null);
   const mountedRef = useRef(true);
 
-  useEffect(() => {
-    const unlock = () => {
-      void ensureAudioReady();
-    };
-    document.addEventListener("pointerdown", unlock);
-    document.addEventListener("keydown", unlock);
-    return () => {
-      document.removeEventListener("pointerdown", unlock);
-      document.removeEventListener("keydown", unlock);
-    };
-  }, []);
+  useEffect(() => attachReservationChimeUnlock(), []);
 
   useEffect(() => {
     const supabase = createClient();
     mountedRef.current = true;
 
-    async function syncPendingIds(): Promise<void> {
+    async function fetchPendingRows(): Promise<PendingRow[]> {
       const { data, error } = await supabase
         .from("reservations")
-        .select("id, full_name, created_at")
+        .select("id, full_name, guests, reservation_date, reservation_time, created_at")
         .eq("status", "pendiente")
         .order("created_at", { ascending: false })
         .limit(50);
 
-      if (error || !data || !mountedRef.current) return;
+      if (error || !data) return [];
+      return data as PendingRow[];
+    }
 
-      const rows = data as { id: string; full_name: string; created_at: string }[];
+    async function syncPendingIds(): Promise<void> {
+      const rows = await fetchPendingRows();
+      if (!mountedRef.current) return;
+
       const ids = new Set(rows.map((r) => r.id));
       if (knownIdsRef.current === null) {
         knownIdsRef.current = ids;
         return;
       }
+
       for (const row of rows) {
         if (!knownIdsRef.current.has(row.id)) {
-          notifyNewPending(row.id, row.full_name, knownIdsRef, setToast);
+          notifyNewPending(
+            {
+              id: row.id,
+              full_name: row.full_name,
+              guests: row.guests,
+              reservation_date: row.reservation_date,
+              reservation_time: row.reservation_time,
+            },
+            rows.length,
+            knownIdsRef,
+            setAlert,
+          );
           break;
         }
       }
@@ -150,11 +135,26 @@ export function AdminNewReservationNotify() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "reservations" },
         (payload) => {
-          const row = payload.new as { id?: string; full_name?: string; status?: string };
-          if (!row.id || !row.full_name) return;
-          if (row.status !== "pendiente") return;
+          const raw = payload.new as Record<string, unknown>;
+          if (raw.status !== "pendiente") return;
           if (!mountedRef.current) return;
-          notifyNewPending(row.id, row.full_name, knownIdsRef, setToast);
+
+          void (async () => {
+            const rows = await fetchPendingRows();
+            if (!mountedRef.current) return;
+
+            const fromPayload = rowFromPayload(raw);
+            const latest = fromPayload ?? (rows[0] ? {
+              id: rows[0].id,
+              full_name: rows[0].full_name,
+              guests: rows[0].guests,
+              reservation_date: rows[0].reservation_date,
+              reservation_time: rows[0].reservation_time,
+            } : null);
+
+            if (!latest) return;
+            notifyNewPending(latest, rows.length, knownIdsRef, setAlert);
+          })();
         },
       )
       .subscribe();
@@ -170,36 +170,86 @@ export function AdminNewReservationNotify() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 12_000);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  if (!alert) return null;
 
-  if (!toast) return null;
+  const { latest, pendingCount } = alert;
 
   return (
     <div
-      role="alert"
-      aria-live="polite"
-      className="pointer-events-auto fixed bottom-6 left-1/2 z-[100] w-[min(92vw,420px)] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-xl"
+      className="pointer-events-auto fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-[2px]"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="pending-reservation-alert-title"
     >
-      <div className="flex gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[var(--admin-accent)]">
-          <Bell size={20} aria-hidden />
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[var(--admin-accent)]">
+            <Bell size={28} strokeWidth={1.75} aria-hidden />
+          </div>
+          <button
+            type="button"
+            onClick={() => setAlert(null)}
+            className="rounded-lg border border-[var(--admin-border)] p-2 text-[var(--admin-muted)] hover:bg-slate-50"
+            aria-label="Cerrar aviso"
+          >
+            <X size={22} />
+          </button>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-[var(--admin-foreground)]">Nueva reserva pendiente</p>
-          <p className="mt-0.5 truncate text-sm text-[var(--admin-muted)]">{toast.name}</p>
-          <p className="mt-1 text-xs text-[var(--admin-muted)]">Revisa la seccion Pendientes de confirmar.</p>
+
+        <p
+          id="pending-reservation-alert-title"
+          className="mt-5 text-center text-2xl font-bold tracking-tight text-[var(--admin-foreground)] sm:text-3xl"
+        >
+          Nueva reserva pendiente
+        </p>
+
+        <p className="mt-2 text-center text-base font-semibold text-[var(--admin-accent)]">
+          {pendingCount} {pendingCount === 1 ? "reserva pendiente" : "reservas pendientes"}
+        </p>
+
+        <div className="mt-6 rounded-xl border border-[var(--admin-border)] bg-slate-50/80 px-5 py-5">
+          <p className="text-center text-xs font-medium uppercase tracking-wider text-[var(--admin-muted)]">
+            Ultima solicitud
+          </p>
+          <p className="mt-2 text-center text-xl font-semibold text-[var(--admin-foreground)]">{latest.full_name}</p>
+          <ul className="mt-4 space-y-3 text-sm text-[var(--admin-foreground)]">
+            <li className="flex items-center justify-center gap-2">
+              <Users size={18} className="shrink-0 text-[var(--admin-accent)]" aria-hidden />
+              <span>
+                <span className="text-[var(--admin-muted)]">Personas:</span> {latest.guests}
+              </span>
+            </li>
+            <li className="flex items-center justify-center gap-2">
+              <CalendarDays size={18} className="shrink-0 text-[var(--admin-accent)]" aria-hidden />
+              <span>
+                <span className="text-[var(--admin-muted)]">Fecha:</span>{" "}
+                {latest.reservation_date
+                  ? formatReservationDate(latest.reservation_date)
+                  : "—"}
+                {latest.reservation_time ? (
+                  <span className="text-[var(--admin-muted)]">
+                    {" "}
+                    · {formatReservationTime(latest.reservation_time)}
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          </ul>
         </div>
+
+        <p className="mt-5 text-center text-sm text-[var(--admin-muted)]">
+          Revisa la seccion &quot;Pendientes de confirmar&quot; en el panel.
+        </p>
+
         <button
           type="button"
-          onClick={() => setToast(null)}
-          className="shrink-0 rounded-md p-1 text-[var(--admin-muted)] hover:bg-slate-100"
-          aria-label="Cerrar aviso"
+          onClick={() => {
+            void unlockReservationChime().then(() => playReservationChime());
+            setAlert(null);
+          }}
+          className="mt-6 w-full rounded-xl bg-[var(--admin-accent)] px-4 py-3.5 text-base font-semibold text-white shadow-sm hover:opacity-95"
         >
-          <X size={18} />
+          Entendido
         </button>
       </div>
     </div>
