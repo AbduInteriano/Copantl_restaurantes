@@ -272,9 +272,18 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into storage.buckets (id, name, public)
-values ('copantl_assets', 'copantl_assets', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'copantl_assets',
+  'copantl_assets',
+  true,
+  10485760,
+  array['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']::text[]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 insert into public.menu_categories (name, product_type, sort_order)
 values

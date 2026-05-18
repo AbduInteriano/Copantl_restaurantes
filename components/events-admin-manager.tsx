@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { uploadAdminImage } from "@/lib/upload-admin-image";
 import type { Database } from "@/lib/supabase/types";
 
 type EventBanner = Database["public"]["Tables"]["event_banners"]["Row"];
@@ -30,14 +31,11 @@ export function EventsAdminManager({ items }: Props) {
     setLoading(true);
     setStatus("");
     try {
-      const filePath = `events/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
+      const { publicUrl } = await uploadAdminImage({ file, folder: "events" });
 
       const { error: insertError } = await supabase.from("event_banners").insert({
         title: null,
-        image_url: data.publicUrl,
+        image_url: publicUrl,
         sort_order: items.length + 1,
       } as never);
       if (insertError) throw insertError;
@@ -45,8 +43,8 @@ export function EventsAdminManager({ items }: Props) {
       setFile(null);
       setStatus("Banner agregado.");
       router.refresh();
-    } catch {
-      setStatus("No se pudo subir el banner.");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "No se pudo subir el banner.");
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { uploadAdminImage } from "@/lib/upload-admin-image";
 
 const LOGO_FIELDS = ["logo_url", "logo_url_2", "logo_url_3"] as const;
 type LogoField = (typeof LOGO_FIELDS)[number];
@@ -20,7 +20,6 @@ export function SiteLogosSettings({ logoUrl, logoUrl2, logoUrl3 }: Props) {
   const [urls, setUrls] = useState<(string | null)[]>(initial);
   const [status, setStatus] = useState("");
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
-  const supabase = createClient();
   const router = useRouter();
 
   async function onUpload(index: number, file: File | null) {
@@ -30,26 +29,22 @@ export function SiteLogosSettings({ logoUrl, logoUrl2, logoUrl3 }: Props) {
     const field = LOGO_FIELDS[index] as LogoField;
 
     try {
-      const filePath = `logos/${field}-${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase.from("site_settings").upsert(
-        { id: 1, [field]: data.publicUrl } as never,
-        { onConflict: "id" },
-      );
-      if (updateError) throw updateError;
+      const { publicUrl } = await uploadAdminImage({
+        file,
+        folder: "logos",
+        settingsField: field,
+      });
 
       setUrls((prev) => {
         const next = [...prev];
-        next[index] = data.publicUrl;
+        next[index] = publicUrl;
         return next;
       });
       setStatus(`${labels[index]}: logo actualizado.`);
       router.refresh();
-    } catch {
-      setStatus(`No se pudo subir el logo de ${labels[index]}.`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Error desconocido";
+      setStatus(`${labels[index]}: ${message}`);
     } finally {
       setLoadingIndex(null);
     }
@@ -61,11 +56,14 @@ export function SiteLogosSettings({ logoUrl, logoUrl2, logoUrl3 }: Props) {
     const field = LOGO_FIELDS[index] as LogoField;
 
     try {
-      const { error } = await supabase.from("site_settings").upsert(
-        { id: 1, [field]: null } as never,
-        { onConflict: "id" },
-      );
-      if (error) throw error;
+      const res = await fetch("/api/admin/site-settings/logo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ field, value: null }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "No se pudo eliminar el logo.");
 
       setUrls((prev) => {
         const next = [...prev];
@@ -74,8 +72,9 @@ export function SiteLogosSettings({ logoUrl, logoUrl2, logoUrl3 }: Props) {
       });
       setStatus(`${labels[index]}: logo eliminado.`);
       router.refresh();
-    } catch {
-      setStatus(`No se pudo eliminar el logo de ${labels[index]}.`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Error desconocido";
+      setStatus(`${labels[index]}: ${message}`);
     } finally {
       setLoadingIndex(null);
     }
@@ -86,7 +85,7 @@ export function SiteLogosSettings({ logoUrl, logoUrl2, logoUrl3 }: Props) {
       <div>
         <h2 className="text-lg font-semibold text-[var(--admin-foreground)]">Logos de restaurantes</h2>
         <p className="mt-1 text-sm text-[var(--admin-muted)]">
-          Sube los 3 logos que aparecen en la portada del sitio (hero).
+          Sube los 3 logos que aparecen en la portada del sitio (hero). Formatos: PNG, JPG o WebP.
         </p>
       </div>
 
@@ -103,11 +102,11 @@ export function SiteLogosSettings({ logoUrl, logoUrl2, logoUrl3 }: Props) {
             )}
             <input
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
               disabled={loadingIndex !== null}
               onChange={(e) => {
-                const file = e.target.files?.[0] ?? null;
-                void onUpload(index, file);
+                const selected = e.target.files?.[0] ?? null;
+                void onUpload(index, selected);
                 e.target.value = "";
               }}
               className="w-full text-sm"
@@ -126,7 +125,13 @@ export function SiteLogosSettings({ logoUrl, logoUrl2, logoUrl3 }: Props) {
         ))}
       </div>
 
-      {status ? <p className="text-sm text-[var(--admin-muted)]">{status}</p> : null}
+      {status ? (
+        <p
+          className={`text-sm ${status.includes("actualizado") || status.includes("eliminado") ? "text-[var(--admin-success)]" : "text-[var(--admin-danger)]"}`}
+        >
+          {status}
+        </p>
+      ) : null}
     </div>
   );
 }

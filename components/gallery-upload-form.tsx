@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { uploadAdminImage } from "@/lib/upload-admin-image";
 
 export function GalleryUploadForm() {
   const [title, setTitle] = useState("");
@@ -24,14 +25,10 @@ export function GalleryUploadForm() {
 
     try {
       const supabase = createClient();
-      const filePath = `gallery/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
+      const { publicUrl } = await uploadAdminImage({ file, folder: "gallery" });
       const { error: insertError } = await supabase.from("gallery_items").insert({
         title,
-        image_url: data.publicUrl,
+        image_url: publicUrl,
         sort_order: sortOrder,
       } as never);
       if (insertError) throw insertError;
@@ -41,8 +38,8 @@ export function GalleryUploadForm() {
       setSortOrder(0);
       setFile(null);
       router.refresh();
-    } catch {
-      setStatus("No se pudo subir la imagen.");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "No se pudo subir la imagen.");
     } finally {
       setLoading(false);
     }

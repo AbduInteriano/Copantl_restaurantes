@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { uploadAdminImage } from "@/lib/upload-admin-image";
 import type { Database } from "@/lib/supabase/types";
 
 type Category = Database["public"]["Tables"]["menu_categories"]["Row"] & {
@@ -101,11 +102,8 @@ function CategoryCard({ category }: { category: Category }) {
     try {
       let imageUrl: string | null = null;
       if (file) {
-        const filePath = `products/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
-        imageUrl = data.publicUrl;
+        const { publicUrl } = await uploadAdminImage({ file, folder: "products" });
+        imageUrl = publicUrl;
       }
 
       const { error: insertError } = await supabase.from("menu_items").insert({
@@ -300,11 +298,8 @@ function ProductEditModal({
     try {
       let imageUrl = item.image_url;
       if (file) {
-        const filePath = `products/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage.from("copantl_assets").upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data } = supabase.storage.from("copantl_assets").getPublicUrl(filePath);
-        imageUrl = data.publicUrl;
+        const { publicUrl } = await uploadAdminImage({ file, folder: "products" });
+        imageUrl = publicUrl;
       }
 
       const { error } = await supabase
