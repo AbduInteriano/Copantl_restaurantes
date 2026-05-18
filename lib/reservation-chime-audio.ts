@@ -1,13 +1,11 @@
 /**
- * Timbre de nueva reserva: 3 repiques (~4 s), una sola reproduccion por llamada.
- * Solo debe invocarse al mostrar el modal de reserva pendiente.
+ * Timbre al abrir el modal de nueva reserva: 3 repiques (~4 s), una vez por aviso.
+ * Usa Web Audio (mas fiable tras un clic en el panel para desbloquear).
  */
 
-const SAMPLE_RATE = 44100;
 const RING_COUNT = 3;
 const RING_GAP_S = 1.35;
 const RING_DURATION_S = 0.72;
-const TOTAL_S = 4;
 
 const BELL_PARTIALS = [
   { ratio: 1, amp: 1 },
@@ -16,85 +14,90 @@ const BELL_PARTIALS = [
 ] as const;
 const BASE_FREQ = 740;
 
-function buildChimeSamples(): Float32Array {
-  const n = Math.floor(SAMPLE_RATE * TOTAL_S);
-  const buf = new Float32Array(n);
+let audioCtx: AudioContext | null = null;
+let pendingChime = false;
 
-  for (let ring = 0; ring < RING_COUNT; ring++) {
-    const startSec = ring * RING_GAP_S;
-    const i0 = Math.floor(startSec * SAMPLE_RATE);
-    const i1 = Math.floor((startSec + RING_DURATION_S) * SAMPLE_RATE);
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return null;
+  if (!audioCtx || audioCtx.state === "closed") {
+    audioCtx = new Ctx();
+  }
+  return audioCtx;
+}
 
-    for (let i = i0; i < i1 && i < n; i++) {
-      const t = (i - i0) / SAMPLE_RATE;
-      let sample = 0;
-      for (const p of BELL_PARTIALS) {
-        sample += Math.sin(2 * Math.PI * BASE_FREQ * p.ratio * t) * p.amp;
-      }
-      const attack = Math.min(1, t / 0.004);
-      const decay = Math.exp(-t * 9);
-      buf[i] += (sample / 1.65) * attack * decay * 0.5;
+function scheduleBellRing(ctx: AudioContext, startTime: number) {
+  const master = ctx.createGain();
+  master.connect(ctx.destination);
+  master.gain.setValueAtTime(0.0001, startTime);
+  master.gain.linearRampToValueAtTime(0.38, startTime + 0.015);
+  master.gain.exponentialRampToValueAtTime(0.0001, startTime + RING_DURATION_S);
+
+  for (const p of BELL_PARTIALS) {
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = BASE_FREQ * p.ratio;
+    const g = ctx.createGain();
+    g.gain.value = p.amp / 1.65;
+    osc.connect(g);
+    g.connect(master);
+    osc.start(startTime);
+    osc.stop(startTime + RING_DURATION_S + 0.05);
+  }
+}
+
+/** Desbloquea audio sin sonido audible (primer clic en el panel). */
+export async function unlockAdminAudioSilently(): Promise<boolean> {
+  const ctx = getAudioContext();
+  if (!ctx) return false;
+  try {
+    if (ctx.state === "suspended") await ctx.resume();
+    if (pendingChime) {
+      pendingChime = false;
+      return playNewReservationChime();
     }
+    return ctx.state === "running";
+  } catch {
+    return false;
   }
-
-  return buf;
 }
 
-function encodeWavDataUrl(samples: Float32Array): string {
-  const dataSize = samples.length * 2;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
+/** 3 repiques (~4 s). Devuelve true si se reprodujo. */
+export async function playNewReservationChime(): Promise<boolean> {
+  const ctx = getAudioContext();
+  if (!ctx) return false;
 
-  const writeStr = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  try {
+    if (ctx.state === "suspended") await ctx.resume();
+    if (ctx.state !== "running") {
+      pendingChime = true;
+      return false;
+    }
+
+    const start = ctx.currentTime + 0.03;
+    for (let ring = 0; ring < RING_COUNT; ring++) {
+      scheduleBellRing(ctx, start + ring * RING_GAP_S);
+    }
+    pendingChime = false;
+    return true;
+  } catch {
+    pendingChime = true;
+    return false;
+  }
+}
+
+/** Clic/tecla en el panel: desbloquea sin timbre (requerido por el navegador). */
+export function setupAdminAudioUnlock(): () => void {
+  const unlock = () => {
+    void unlockAdminAudioSilently();
   };
-
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, SAMPLE_RATE, true);
-  view.setUint32(28, SAMPLE_RATE * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeStr(36, "data");
-  view.setUint32(40, dataSize, true);
-
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    offset += 2;
-  }
-
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return `data:audio/wav;base64,${btoa(binary)}`;
-}
-
-let audioEl: HTMLAudioElement | null = null;
-
-function getAudio(): HTMLAudioElement {
-  if (!audioEl) {
-    audioEl = new Audio(encodeWavDataUrl(buildChimeSamples()));
-    audioEl.preload = "auto";
-    audioEl.loop = false;
-  }
-  return audioEl;
-}
-
-/** Reproduce el timbre una vez (3 repiques, ~4 s). */
-export function playNewReservationChime(): void {
-  const audio = getAudio();
-  audio.pause();
-  audio.currentTime = 0;
-  audio.loop = false;
-  audio.volume = 1;
-  void audio.play().catch(() => {
-    /* Navegador bloqueo autoplay: sin reintentos ni otros sonidos en el panel */
-  });
+  document.addEventListener("pointerdown", unlock, { capture: true });
+  document.addEventListener("keydown", unlock, { capture: true });
+  return () => {
+    document.removeEventListener("pointerdown", unlock, { capture: true });
+    document.removeEventListener("keydown", unlock, { capture: true });
+  };
 }

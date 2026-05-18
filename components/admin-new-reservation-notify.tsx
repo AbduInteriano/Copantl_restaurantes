@@ -4,7 +4,7 @@ import { Bell, CalendarDays, Users, X } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { playNewReservationChime } from "@/lib/reservation-chime-audio";
+import { playNewReservationChime, setupAdminAudioUnlock } from "@/lib/reservation-chime-audio";
 import { formatReservationTimeSlotLabel } from "@/lib/reservation-time-slots";
 import { createClient } from "@/lib/supabase/client";
 
@@ -74,6 +74,7 @@ export function AdminNewReservationNotify() {
   const [alert, setAlert] = useState<PendingAlert | null>(null);
   const knownIdsRef = useRef<Set<string> | null>(null);
   const lastChimedReservationIdRef = useRef<string | null>(null);
+  const pendingChimeForIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
 
   function dismissAlert() {
@@ -81,11 +82,23 @@ export function AdminNewReservationNotify() {
     router.refresh();
   }
 
+  function tryPlayChimeForAlert(current: PendingAlert) {
+    if (lastChimedReservationIdRef.current === current.latest.id) return;
+    void playNewReservationChime().then((ok) => {
+      if (ok) {
+        lastChimedReservationIdRef.current = current.latest.id;
+        pendingChimeForIdRef.current = null;
+      } else {
+        pendingChimeForIdRef.current = current.latest.id;
+      }
+    });
+  }
+
+  useEffect(() => setupAdminAudioUnlock(), []);
+
   useEffect(() => {
     if (!alert) return;
-    if (lastChimedReservationIdRef.current === alert.latest.id) return;
-    lastChimedReservationIdRef.current = alert.latest.id;
-    playNewReservationChime();
+    tryPlayChimeForAlert(alert);
   }, [alert]);
 
   useEffect(() => {
@@ -188,6 +201,11 @@ export function AdminNewReservationNotify() {
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="pending-reservation-alert-title"
+      onPointerDownCapture={() => {
+        if (!alert) return;
+        if (pendingChimeForIdRef.current !== alert.latest.id) return;
+        tryPlayChimeForAlert(alert);
+      }}
     >
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
         <div className="flex items-start justify-between gap-4">
