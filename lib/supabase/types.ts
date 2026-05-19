@@ -129,6 +129,17 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["event_banners"]["Insert"]>;
       };
+      event_banner_restaurants: {
+        Row: {
+          event_id: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+        };
+        Insert: {
+          event_id: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+        };
+        Update: Partial<Database["public"]["Tables"]["event_banner_restaurants"]["Insert"]>;
+      };
       reservations: {
         Row: {
           id: string;
@@ -141,6 +152,7 @@ export type Database = {
           mesa: number | null;
           /** Restaurante elegido (cbari, la_posada, la_churrasqueria) */
           area?: "cbari" | "la_posada" | "la_churrasqueria" | null;
+          event_id?: string | null;
           source: "web" | "manual";
           notes: string | null;
           status: "pendiente" | "confirmada" | "cancelada";
@@ -156,6 +168,7 @@ export type Database = {
           guests: number;
           mesa?: number | null;
           area?: "cbari" | "la_posada" | "la_churrasqueria";
+          event_id?: string | null;
           source?: "web" | "manual";
           notes?: string | null;
           status?: "pendiente" | "confirmada" | "cancelada";

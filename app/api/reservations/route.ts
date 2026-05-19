@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sendEmailWithTemplate } from "@/lib/email";
 import { formatReservationRestaurant, parseReservationRestaurant } from "@/lib/restaurants";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
+import { validateReservationEvent } from "@/lib/validate-reservation-event";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
@@ -15,6 +16,12 @@ export async function POST(req: Request) {
   }
 
   const area = parseReservationRestaurant(payload.area);
+  const reservationDate = String(payload.reservation_date ?? "");
+
+  const eventCheck = await validateReservationEvent(payload.event_id, area, reservationDate);
+  if (!eventCheck.ok) {
+    return NextResponse.json({ error: eventCheck.error }, { status: 400 });
+  }
 
   const supabase = createClient();
 
@@ -22,21 +29,21 @@ export async function POST(req: Request) {
     full_name: payload.full_name,
     email: payload.email,
     phone: payload.phone,
-    reservation_date: payload.reservation_date,
+    reservation_date: reservationDate,
     reservation_time: payload.reservation_time,
     guests,
     mesa: null,
     area,
+    event_id: eventCheck.eventId,
     source: "web",
     notes: payload.notes ?? null,
   };
 
   let { error } = await supabase.from("reservations").insert(rowWithArea as never);
 
-  // Si aun no migraste la columna `area` en Supabase, reintentar sin ese campo
-  if (error && /area|schema cache/i.test(error.message)) {
-    const { area: _omit, ...withoutArea } = rowWithArea;
-    ({ error } = await supabase.from("reservations").insert(withoutArea as never));
+  if (error && /area|event_id|schema cache/i.test(error.message)) {
+    const { area: _a, event_id: _e, ...withoutOptional } = rowWithArea;
+    ({ error } = await supabase.from("reservations").insert(withoutOptional as never));
   }
 
   if (error) {

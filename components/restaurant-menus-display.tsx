@@ -82,11 +82,6 @@ export function RestaurantMenusDisplay({ items }: Props) {
                   <UtensilsCrossed size={22} strokeWidth={1.75} />
                 </span>
                 <h3 className="section-title text-xl text-[var(--accent-gold-dark)] sm:text-2xl">{restaurant.shortLabel}</h3>
-                <p className="mt-2 text-sm text-[var(--foreground-muted)]">
-                  {hasMenu
-                    ? `${count} pagina${count === 1 ? "" : "s"} de menu · Toca para ver`
-                    : "Menu proximamente"}
-                </p>
                 {hasMenu ? (
                   <span className="mt-5 inline-flex items-center text-sm font-semibold text-[var(--accent-gold)]">
                     Ver menu

@@ -82,6 +82,22 @@ create table if not exists public.event_banners (
 alter table public.event_banners alter column title drop not null;
 alter table public.event_banners add column if not exists event_date date;
 
+create table if not exists public.event_banner_restaurants (
+  event_id uuid not null references public.event_banners(id) on delete cascade,
+  restaurant public.restaurant_key not null,
+  primary key (event_id, restaurant)
+);
+
+alter table public.event_banner_restaurants enable row level security;
+
+drop policy if exists "Public read event restaurants" on public.event_banner_restaurants;
+create policy "Public read event restaurants" on public.event_banner_restaurants
+  for select using (true);
+
+drop policy if exists "Admin manage event restaurants" on public.event_banner_restaurants;
+create policy "Admin manage event restaurants" on public.event_banner_restaurants
+  for all using (public.is_app_admin()) with check (public.is_app_admin());
+
 create table if not exists public.gallery_items (
   id uuid primary key default gen_random_uuid(),
   title text,
@@ -361,6 +377,8 @@ alter table public.reservations add constraint reservations_area_check
 
 alter table public.reservations drop constraint if exists reservations_guests_check;
 alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);
+
+alter table public.reservations add column if not exists event_id uuid references public.event_banners(id) on delete set null;
 
 -- Aviso en panel admin (Realtime): en Supabase, Database > Publications > supabase_realtime,
 -- agrega la tabla public.reservations si los INSERT no disparan el canal en el cliente.

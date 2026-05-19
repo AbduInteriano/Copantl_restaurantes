@@ -2,18 +2,20 @@
 
 import { EventsCalendarView, type CalendarEventItem } from "@/components/events-calendar-view";
 import { ReservationBookingForm } from "@/components/reservation-form";
+import type { BookableEvent } from "@/lib/events";
 import { ReservationSuccessActions } from "@/components/reservation-success-actions";
 import { CalendarDays, CalendarHeart, ChevronLeft, ChevronRight, X, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Props = {
   items: CalendarEventItem[];
+  bookableEvents?: BookableEvent[];
   whatsappHref: string;
 };
 
 type SheetView = "events" | "reserve" | "success";
 
-export function EventsPanel({ items, whatsappHref }: Props) {
+export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props) {
   const [open, setOpen] = useState(false);
   const [sheetView, setSheetView] = useState<SheetView>("events");
   const [reserveKey, setReserveKey] = useState(0);
@@ -139,6 +141,7 @@ export function EventsPanel({ items, whatsappHref }: Props) {
                   key={reserveKey}
                   compact
                   showTerms
+                  bookableEvents={bookableEvents}
                   onSuccess={() => setSheetView("success")}
                 />
               )}

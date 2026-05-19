@@ -1,15 +1,16 @@
-import { FadeIn } from "@/components/fade-in";
 import { EventsPanel } from "@/components/events-panel";
 import { GalleryCarousel } from "@/components/gallery-carousel";
 import { HeroLanding } from "@/components/hero-landing";
 import { RestaurantMenusDisplay, type RestaurantMenuImage } from "@/components/restaurant-menus-display";
 import { SiteFooter } from "@/components/site-footer";
+import { SiteInfoSection } from "@/components/site-info-section";
+import { FadeIn } from "@/components/fade-in";
 import { fallbackSettings } from "@/lib/data";
+import { mapRowsToBookableEvents } from "@/lib/events";
 import { resolveSocialHrefs } from "@/lib/social-hrefs";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import type { RestaurantKey } from "@/lib/restaurants";
-import { CalendarDays, MapPin, Wine } from "lucide-react";
 
 const GALLERY_MAX = 10;
 
@@ -30,7 +31,7 @@ export default async function Home() {
       .order("sort_order", { ascending: true }),
     supabase
       .from("event_banners")
-      .select("*")
+      .select("id, title, image_url, event_date, sort_order, event_banner_restaurants(restaurant)")
       .eq("is_active", true)
       .order("event_date", { ascending: true, nullsFirst: false })
       .order("sort_order", { ascending: true }),
@@ -53,7 +54,25 @@ export default async function Home() {
     image_url: g.image_url,
     title: g.title,
   }));
-  const eventItems = (events ?? []) as Database["public"]["Tables"]["event_banners"]["Row"][];
+
+  const bookableEvents = mapRowsToBookableEvents(events ?? []);
+  const calendarEvents = (events ?? []).map((e) => {
+    const row = e as {
+      id: string;
+      title: string | null;
+      image_url: string;
+      event_date: string | null;
+      event_banner_restaurants?: { restaurant: string }[] | null;
+    };
+    return {
+      id: row.id,
+      title: row.title,
+      image_url: row.image_url,
+      event_date: row.event_date,
+      restaurants: mapRowsToBookableEvents([row])[0]?.restaurants ?? [],
+    };
+  });
+
   const socialHrefs = resolveSocialHrefs({
     phone: site.phone,
     instagramUrl: site.instagram_url,
@@ -62,6 +81,10 @@ export default async function Home() {
     whatsappUrl: site.whatsapp_url,
   });
 
+  const openingHours = Array.isArray(site.opening_hours)
+    ? (site.opening_hours as { day: string; hours: string }[])
+    : fallbackSettings.opening_hours;
+
   return (
     <main className="overflow-x-hidden">
       <section
@@ -69,42 +92,20 @@ export default async function Home() {
         aria-label="Inicio"
       >
         <FadeIn>
-          <HeroLanding subtitle="By Copantl" whatsappHref={socialHrefs.whatsappHref} />
+          <HeroLanding subtitle="By Copantl" whatsappHref={socialHrefs.whatsappHref} bookableEvents={bookableEvents} />
         </FadeIn>
       </section>
 
       <div className="grain-overlay relative">
-        <section className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-10 sm:px-8 sm:py-14 md:grid-cols-2 lg:px-6">
-          <FadeIn>
-            <h2 className="section-title text-4xl">Copantl Reservaciones</h2>
-            <div className="gold-divider my-5" />
-            <p className="leading-8 text-[var(--foreground-muted)]">{site.about_text}</p>
-          </FadeIn>
-          <FadeIn delay={0.1} className="space-y-4 rounded-xl border bg-[var(--surface)] p-6">
-            <p className="flex items-center gap-3">
-              <MapPin size={18} className="text-[var(--accent-gold)]" />
-              {site.address}
-            </p>
-            <p className="flex items-center gap-3">
-              <Wine size={18} className="text-[var(--accent-gold)]" />
-              {site.phone}
-            </p>
-            <p className="flex items-center gap-3">
-              <CalendarDays size={18} className="text-[var(--accent-gold)]" />
-              {site.email}
-            </p>
-          </FadeIn>
-        </section>
-
-        <EventsPanel
-          items={eventItems.map((e) => ({
-            id: e.id,
-            title: e.title,
-            image_url: e.image_url,
-            event_date: e.event_date ?? null,
-          }))}
-          whatsappHref={socialHrefs.whatsappHref}
+        <SiteInfoSection
+          aboutText={site.about_text}
+          address={site.address}
+          phone={site.phone}
+          email={site.email}
+          openingHours={openingHours}
         />
+
+        <EventsPanel items={calendarEvents} bookableEvents={bookableEvents} whatsappHref={socialHrefs.whatsappHref} />
 
         <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16 lg:px-6">
           <FadeIn>
@@ -130,7 +131,6 @@ export default async function Home() {
           whatsappUrl={site.whatsapp_url}
         />
       </div>
-
     </main>
   );
 }

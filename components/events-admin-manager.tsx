@@ -4,33 +4,58 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { RESTAURANTS, type RestaurantKey } from "@/lib/restaurants";
 import { uploadAdminImage } from "@/lib/upload-admin-image";
 import type { Database } from "@/lib/supabase/types";
 
 type EventBanner = Database["public"]["Tables"]["event_banners"]["Row"];
 
+export type EventBannerAdmin = EventBanner & {
+  restaurants: RestaurantKey[];
+};
+
 type Props = {
-  items: EventBanner[];
+  items: EventBannerAdmin[];
 };
 
 export function EventsAdminManager({ items }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [eventDate, setEventDate] = useState("");
   const [title, setTitle] = useState("");
+  const [selectedRestaurants, setSelectedRestaurants] = useState<RestaurantKey[]>(["cbari"]);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
+  function toggleRestaurant(key: RestaurantKey) {
+    setSelectedRestaurants((prev) =>
+      prev.includes(key) ? prev.filter((r) => r !== key) : [...prev, key],
+    );
+  }
+
+  async function syncRestaurants(eventId: string, restaurants: RestaurantKey[]) {
+    await supabase.from("event_banner_restaurants").delete().eq("event_id", eventId);
+    if (restaurants.length === 0) return;
+    const { error } = await supabase.from("event_banner_restaurants").insert(
+      restaurants.map((restaurant) => ({ event_id: eventId, restaurant })) as never,
+    );
+    if (error) throw error;
+  }
+
   async function onUpload(e: React.FormEvent) {
     e.preventDefault();
     if (items.length >= 5) {
-      setStatus("Limite alcanzado: maximo 5 banners de eventos.");
+      setStatus("Limite alcanzado: maximo 5 eventos.");
       return;
     }
     if (!file) return;
     if (!eventDate) {
-      setStatus("Indica la fecha del evento para mostrarlo en el calendario.");
+      setStatus("Indica la fecha del evento.");
+      return;
+    }
+    if (selectedRestaurants.length === 0) {
+      setStatus("Selecciona al menos un restaurante para el evento.");
       return;
     }
 
@@ -39,21 +64,29 @@ export function EventsAdminManager({ items }: Props) {
     try {
       const { publicUrl } = await uploadAdminImage({ file, folder: "events" });
 
-      const { error: insertError } = await supabase.from("event_banners").insert({
-        title: title.trim() || null,
-        image_url: publicUrl,
-        event_date: eventDate,
-        sort_order: items.length + 1,
-      } as never);
-      if (insertError) throw insertError;
+      const { data: inserted, error: insertError } = await supabase
+        .from("event_banners")
+        .insert({
+          title: title.trim() || null,
+          image_url: publicUrl,
+          event_date: eventDate,
+          sort_order: items.length + 1,
+        } as never)
+        .select("id")
+        .single();
+      if (insertError || !inserted) throw insertError ?? new Error("No se creo el evento.");
+
+      const eventId = (inserted as { id: string }).id;
+      await syncRestaurants(eventId, selectedRestaurants);
 
       setFile(null);
       setEventDate("");
       setTitle("");
-      setStatus("Evento agregado al calendario.");
+      setSelectedRestaurants(["cbari"]);
+      setStatus("Evento agregado.");
       router.refresh();
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : "No se pudo subir el banner.");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "No se pudo subir el evento.");
     } finally {
       setLoading(false);
     }
@@ -86,6 +119,19 @@ export function EventsAdminManager({ items }: Props) {
     router.refresh();
   }
 
+  async function updateItemRestaurants(id: string, restaurants: RestaurantKey[]) {
+    if (restaurants.length === 0) {
+      setStatus("El evento debe tener al menos un restaurante.");
+      return;
+    }
+    try {
+      await syncRestaurants(id, restaurants);
+      router.refresh();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "No se actualizaron los restaurantes.");
+    }
+  }
+
   return (
     <div className="space-y-4">
       <form onSubmit={onUpload} className="space-y-3 rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-sm">
@@ -107,6 +153,21 @@ export function EventsAdminManager({ items }: Props) {
             className="mt-1 w-full rounded-md border bg-transparent p-3"
           />
         </label>
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-[var(--foreground-muted)]">Restaurantes del evento</legend>
+          <div className="flex flex-wrap gap-3">
+            {RESTAURANTS.map((r) => (
+              <label key={r.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedRestaurants.includes(r.key)}
+                  onChange={() => toggleRestaurant(r.key)}
+                />
+                {r.shortLabel}
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full rounded-md border bg-transparent p-3" required />
         <button
           disabled={loading || items.length >= 5}
@@ -119,43 +180,88 @@ export function EventsAdminManager({ items }: Props) {
 
       <div className="grid gap-3 md:grid-cols-2">
         {items.map((item) => (
-          <div key={item.id} className="rounded-md border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm">
-            <div className="aspect-[4/3] overflow-hidden rounded-md">
-              <img src={item.image_url} alt={item.title ?? "Banner de evento"} className="h-full w-full object-cover" />
-            </div>
-            <div className="mt-3 space-y-2">
-              <input
-                type="text"
-                defaultValue={item.title ?? ""}
-                placeholder="Titulo"
-                className="w-full rounded-md border bg-transparent p-2 text-sm"
-                onBlur={(e) => {
-                  if ((item.title ?? "") !== e.target.value.trim()) {
-                    void updateTitle(item.id, e.target.value);
-                  }
-                }}
-              />
-              <label className="block text-xs text-[var(--foreground-muted)]">
-                Fecha en calendario
-                <input
-                  type="date"
-                  defaultValue={item.event_date ?? ""}
-                  className="mt-1 w-full rounded-md border bg-transparent p-2 text-sm"
-                  onChange={(e) => void updateEventDate(item.id, e.target.value)}
-                />
-              </label>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => deleteItem(item.id)}
-                className="rounded-md border border-[var(--admin-border)] bg-white p-2 text-amber-800 hover:bg-amber-50"
-                title="Eliminar"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
+          <EventAdminCard
+            key={item.id}
+            item={item}
+            onDelete={() => void deleteItem(item.id)}
+            onDateChange={(date) => void updateEventDate(item.id, date)}
+            onTitleBlur={(t) => {
+              if ((item.title ?? "") !== t.trim()) void updateTitle(item.id, t);
+            }}
+            onRestaurantsChange={(restaurants) => void updateItemRestaurants(item.id, restaurants)}
+          />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function EventAdminCard({
+  item,
+  onDelete,
+  onDateChange,
+  onTitleBlur,
+  onRestaurantsChange,
+}: {
+  item: EventBannerAdmin;
+  onDelete: () => void;
+  onDateChange: (date: string) => void;
+  onTitleBlur: (title: string) => void;
+  onRestaurantsChange: (restaurants: RestaurantKey[]) => void;
+}) {
+  const [localRestaurants, setLocalRestaurants] = useState<RestaurantKey[]>(item.restaurants);
+
+  function toggle(key: RestaurantKey) {
+    const next = localRestaurants.includes(key)
+      ? localRestaurants.filter((r) => r !== key)
+      : [...localRestaurants, key];
+    setLocalRestaurants(next);
+    onRestaurantsChange(next);
+  }
+
+  return (
+    <div className="rounded-md border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm">
+      <div className="aspect-[4/3] overflow-hidden rounded-md">
+        <img src={item.image_url} alt={item.title ?? "Evento"} className="h-full w-full object-cover" />
+      </div>
+      <div className="mt-3 space-y-2">
+        <input
+          type="text"
+          defaultValue={item.title ?? ""}
+          placeholder="Titulo"
+          className="w-full rounded-md border bg-transparent p-2 text-sm"
+          onBlur={(e) => onTitleBlur(e.target.value)}
+        />
+        <label className="block text-xs text-[var(--foreground-muted)]">
+          Fecha
+          <input
+            type="date"
+            defaultValue={item.event_date ?? ""}
+            className="mt-1 w-full rounded-md border bg-transparent p-2 text-sm"
+            onChange={(e) => onDateChange(e.target.value)}
+          />
+        </label>
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-[var(--foreground-muted)]">Restaurantes</p>
+          <div className="flex flex-wrap gap-2">
+            {RESTAURANTS.map((r) => (
+              <label key={r.key} className="flex items-center gap-1.5 text-xs">
+                <input type="checkbox" checked={localRestaurants.includes(r.key)} onChange={() => toggle(r.key)} />
+                {r.shortLabel}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={onDelete}
+          className="rounded-md border border-[var(--admin-border)] bg-white p-2 text-amber-800 hover:bg-amber-50"
+          title="Eliminar"
+        >
+          <Trash2 size={16} />
+        </button>
       </div>
     </div>
   );

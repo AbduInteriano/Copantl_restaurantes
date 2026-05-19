@@ -4,11 +4,13 @@ import { CheckCircle2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ReservationBookingForm } from "@/components/reservation-form";
 import { ReservationSuccessActions } from "@/components/reservation-success-actions";
+import type { BookableEvent } from "@/lib/events";
 
 type Props = {
   triggerLabel?: string;
   triggerClassName?: string;
   whatsappHref: string;
+  bookableEvents?: BookableEvent[];
 };
 
 const termsText =
@@ -18,6 +20,7 @@ export function ReservationModal({
   triggerLabel = "Reservar",
   triggerClassName = "btn-primary min-h-[48px] px-6 py-3.5 text-base sm:min-h-[52px] sm:text-lg",
   whatsappHref,
+  bookableEvents = [],
 }: Props) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<"form" | "success">("form");
@@ -51,7 +54,12 @@ export function ReservationModal({
 
             <div className="px-4 py-5 sm:px-6 sm:py-6">
               {phase === "form" ? (
-                <ReservationBookingForm showTerms termsText={termsText} onSuccess={() => setPhase("success")} />
+                <ReservationBookingForm
+                  showTerms
+                  termsText={termsText}
+                  bookableEvents={bookableEvents}
+                  onSuccess={() => setPhase("success")}
+                />
               ) : (
                 <div className="flex flex-col items-center gap-6 py-6 text-center sm:py-10">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[var(--accent-gold)]/35 bg-[var(--accent-gold)]/10 text-[var(--accent-gold)]">

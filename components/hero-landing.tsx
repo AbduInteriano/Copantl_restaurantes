@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { ReservationModal } from "@/components/reservation-modal";
+import type { BookableEvent } from "@/lib/events";
 import { getHeroBannerCandidates } from "@/lib/restaurant-logos";
 
 type Props = {
   subtitle?: string;
   whatsappHref: string;
+  bookableEvents?: BookableEvent[];
 };
 
 function HeroBannerImage() {
@@ -34,7 +36,7 @@ function HeroBannerImage() {
   );
 }
 
-export function HeroLanding({ subtitle = "By Copantl", whatsappHref }: Props) {
+export function HeroLanding({ subtitle = "By Copantl", whatsappHref, bookableEvents = [] }: Props) {
   return (
     <div className="flex w-full max-w-3xl flex-col items-center gap-5 text-center sm:gap-6">
       <HeroBannerImage />
@@ -42,6 +44,7 @@ export function HeroLanding({ subtitle = "By Copantl", whatsappHref }: Props) {
       <div className="w-full max-w-sm px-1 sm:max-w-md">
         <ReservationModal
           whatsappHref={whatsappHref}
+          bookableEvents={bookableEvents}
           triggerLabel="Reservar"
           triggerClassName="btn-primary min-h-[48px] w-full px-6 py-3.5 text-center text-base leading-tight sm:min-h-[52px] sm:px-8 sm:text-lg"
         />

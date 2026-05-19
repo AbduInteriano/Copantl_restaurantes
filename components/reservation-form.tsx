@@ -1,8 +1,9 @@
 "use client";
 
 import emailjs from "@emailjs/browser";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { type BookableEvent, eventsForReservation, formatEventOptionLabel } from "@/lib/events";
 import { formatReservationTimeSlotLabel, RESERVATION_TIME_SLOT_VALUES } from "@/lib/reservation-time-slots";
 import { RESTAURANTS, type RestaurantKey } from "@/lib/restaurants";
 
@@ -14,6 +15,7 @@ export type ReservationValues = {
   reservation_date: string;
   reservation_time: string;
   area: RestaurantKey;
+  event_id?: string;
   notes?: string;
 };
 
@@ -22,7 +24,7 @@ export type ReservationBookingFormProps = {
   compact?: boolean;
   showTerms?: boolean;
   termsText?: string;
-  /** Si se define, el padre controla la vista de éxito (p. ej. modal). */
+  bookableEvents?: BookableEvent[];
   onSuccess?: () => void;
 };
 
@@ -34,17 +36,35 @@ export function ReservationBookingForm({
   compact,
   showTerms,
   termsText = defaultTerms,
+  bookableEvents = [],
   onSuccess,
 }: ReservationBookingFormProps) {
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dateInputType, setDateInputType] = useState<"text" | "date">("text");
-  const { register, handleSubmit, reset } = useForm<ReservationValues>({
+  const { register, handleSubmit, reset, watch, setValue } = useForm<ReservationValues>({
     defaultValues: {
       area: "cbari",
       reservation_time: "",
+      event_id: "",
     },
   });
+
+  const area = watch("area");
+  const reservationDate = watch("reservation_date");
+
+  const availableEvents = useMemo(
+    () => eventsForReservation(bookableEvents, area, reservationDate),
+    [bookableEvents, area, reservationDate],
+  );
+
+  const eventId = watch("event_id");
+
+  useEffect(() => {
+    if (eventId && !availableEvents.some((e) => e.id === eventId)) {
+      setValue("event_id", "");
+    }
+  }, [availableEvents, eventId, setValue]);
 
   const timeOptions = useMemo(
     () =>
@@ -62,10 +82,14 @@ export function ReservationBookingForm({
     setIsSubmitting(true);
     setStatus("");
     try {
+      const payload = {
+        ...values,
+        event_id: values.event_id?.trim() ? values.event_id : undefined,
+      };
       const response = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -87,15 +111,15 @@ export function ReservationBookingForm({
           await emailjs.send(
             process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
             process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
-            values,
+            payload,
             { publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY },
           );
         } catch {
-          // No bloquear exito si solo falla el envio del correo
+          /* correo opcional */
         }
       }
 
-      reset({ area: "cbari", reservation_time: "" });
+      reset({ area: "cbari", reservation_time: "", event_id: "" });
       setDateInputType("text");
       if (onSuccess) {
         onSuccess();
@@ -171,6 +195,23 @@ export function ReservationBookingForm({
             </select>
           </label>
         </div>
+        <label className={`flex flex-col gap-1.5 md:col-span-2 ${compact ? "text-xs" : "text-sm"} text-[var(--foreground-muted)]`}>
+          <span className="font-medium text-[var(--foreground)]">Evento (opcional)</span>
+          <select className={inputClass} {...register("event_id")} disabled={availableEvents.length === 0}>
+            <option value="">
+              {availableEvents.length === 0
+                ? reservationDate
+                  ? "Sin eventos para esta fecha y restaurante"
+                  : "Selecciona fecha y restaurante"
+                : "Sin evento"}
+            </option>
+            {availableEvents.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {formatEventOptionLabel(ev)}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       <textarea
         className={`min-h-24 w-full ${inputClass}`}
@@ -198,3 +239,4 @@ export function ReservationForm() {
     <ReservationBookingForm className="rounded-xl border border-[var(--border)] p-6" />
   );
 }
+

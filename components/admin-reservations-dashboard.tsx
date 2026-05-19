@@ -20,6 +20,7 @@ type Reservation = Database["public"]["Tables"]["reservations"]["Row"];
 
 type Props = {
   reservations: Reservation[];
+  eventTitles?: Record<string, string>;
 };
 
 const MONTHS_ES = [
@@ -37,7 +38,7 @@ function mesaColor(mesa: number): string {
   return `hsl(${hue} 62% 42%)`;
 }
 
-export function AdminReservationsDashboard({ reservations }: Props) {
+export function AdminReservationsDashboard({ reservations, eventTitles = {} }: Props) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -499,6 +500,11 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                       <p>
                         <span className="text-[var(--foreground-muted)]">Restaurante:</span> {formatReservationAreaLong(r.area)}
                       </p>
+                      {r.event_id && eventTitles[r.event_id] ? (
+                        <p>
+                          <span className="text-[var(--foreground-muted)]">Evento:</span> {eventTitles[r.event_id]}
+                        </p>
+                      ) : null}
                       <p>
                         <span className="text-[var(--foreground-muted)]">Origen:</span>{" "}
                         {r.source === "manual" ? "Manual" : "Web"}
@@ -558,6 +564,12 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                 </p>
                 <p>
                   <strong>Restaurante:</strong> {formatReservationAreaLong(editingReservation.area)}
+                  {editingReservation.event_id && eventTitles[editingReservation.event_id] ? (
+                    <>
+                      <br />
+                      <strong>Evento:</strong> {eventTitles[editingReservation.event_id]}
+                    </>
+                  ) : null}
                 </p>
                 <p>
                   <strong>Origen:</strong> {editingReservation.source === "manual" ? "Manual" : "Web"}
@@ -668,6 +680,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               key={r.id}
               r={r}
               reservations={reservations}
+              eventTitles={eventTitles}
               loadingId={loadingId}
               onConfirm={(mesa) => changeStatus(r.id, "confirmada", mesa)}
               onReject={() => changeStatus(r.id, "cancelada")}
@@ -810,6 +823,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
 function PendingCard({
   r,
   reservations,
+  eventTitles,
   loadingId,
   onConfirm,
   onReject,
@@ -817,6 +831,7 @@ function PendingCard({
 }: {
   r: Reservation;
   reservations: Reservation[];
+  eventTitles: Record<string, string>;
   loadingId: string | null;
   onConfirm: (mesa: number) => void;
   onReject: () => void;
@@ -836,6 +851,7 @@ function PendingCard({
         <p><strong>Telefono:</strong> {r.phone}</p>
         <p><strong>Personas:</strong> {r.guests}</p>
         <p><strong>Restaurante:</strong> {formatReservationAreaLong(r.area)}</p>
+        {r.event_id && eventTitles[r.event_id] ? <p><strong>Evento:</strong> {eventTitles[r.event_id]}</p> : null}
         <p><strong>Fecha:</strong> {r.reservation_date}</p>
         <p><strong>Hora:</strong> {normalizeTimeKey(r.reservation_time)}</p>
         <p><strong>Origen:</strong> {r.source === "manual" ? "Manual" : "Web"}</p>
