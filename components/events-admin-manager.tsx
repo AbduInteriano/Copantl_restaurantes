@@ -61,7 +61,7 @@ export function EventsAdminManager({ items }: Props) {
       return;
     }
     if (!startTime || !endTime || startTime >= endTime) {
-      setStatus("Indica un horario de reservas valido (inicio antes que fin).");
+      setStatus("Indica un horario de evento valido (inicio antes que fin).");
       return;
     }
 
@@ -109,7 +109,7 @@ export function EventsAdminManager({ items }: Props) {
 
   async function updateEventTimes(id: string, start: string, end: string) {
     if (!start || !end || start >= end) {
-      setStatus("Horario de reservas invalido.");
+      setStatus("Horario del evento invalido.");
       return;
     }
     const { error } = await supabase
@@ -181,7 +181,7 @@ export function EventsAdminManager({ items }: Props) {
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm text-[var(--foreground-muted)]">
-            Hora inicio reservas
+            Inicio de evento
             <input
               type="time"
               value={startTime}
@@ -191,7 +191,7 @@ export function EventsAdminManager({ items }: Props) {
             />
           </label>
           <label className="block text-sm text-[var(--foreground-muted)]">
-            Hora fin reservas
+            Fin del evento
             <input
               type="time"
               value={endTime}
@@ -296,7 +296,7 @@ function EventAdminCard({
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block text-xs text-[var(--foreground-muted)]">
-            Inicio reservas
+            Inicio de evento
             <input
               type="time"
               value={startTime}
@@ -308,7 +308,7 @@ function EventAdminCard({
             />
           </label>
           <label className="block text-xs text-[var(--foreground-muted)]">
-            Fin reservas
+            Fin del evento
             <input
               type="time"
               value={endTime}

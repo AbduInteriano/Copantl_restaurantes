@@ -20,20 +20,20 @@ export function SiteInfoSection({
 }: Props) {
   const contactItems = [
     {
-      key: "address",
-      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
-      external: true,
-      icon: MapPin,
-      label: "Ubicacion",
-      value: address,
-    },
-    {
       key: "phone",
       href: `tel:${phone.replace(/\s/g, "")}`,
       external: false,
       icon: Phone,
       label: "Telefono",
       value: phone,
+    },
+    {
+      key: "address",
+      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+      external: true,
+      icon: MapPin,
+      label: "Ubicacion",
+      value: address,
     },
     {
       key: "email",
