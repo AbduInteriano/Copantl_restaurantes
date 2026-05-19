@@ -81,10 +81,6 @@ export default async function Home() {
     whatsappUrl: site.whatsapp_url,
   });
 
-  const openingHours = Array.isArray(site.opening_hours)
-    ? (site.opening_hours as { day: string; hours: string }[])
-    : fallbackSettings.opening_hours;
-
   return (
     <main className="overflow-x-hidden">
       <section
@@ -98,11 +94,11 @@ export default async function Home() {
 
       <div className="grain-overlay relative">
         <SiteInfoSection
+          title={site.hero_title}
           aboutText={site.about_text}
           address={site.address}
           phone={site.phone}
           email={site.email}
-          openingHours={openingHours}
         />
 
         <EventsPanel items={calendarEvents} bookableEvents={bookableEvents} whatsappHref={socialHrefs.whatsappHref} />

@@ -1,9 +1,7 @@
 "use client";
 
 import { FadeIn } from "@/components/fade-in";
-import { Clock, Mail, MapPin, Phone } from "lucide-react";
-
-type OpeningHour = { day: string; hours: string };
+import { Mail, MapPin, Phone } from "lucide-react";
 
 type Props = {
   title?: string;
@@ -11,7 +9,6 @@ type Props = {
   address: string;
   phone: string;
   email: string;
-  openingHours?: OpeningHour[];
 };
 
 export function SiteInfoSection({
@@ -20,8 +17,34 @@ export function SiteInfoSection({
   address,
   phone,
   email,
-  openingHours = [],
 }: Props) {
+  const contactItems = [
+    {
+      key: "address",
+      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+      external: true,
+      icon: MapPin,
+      label: "Ubicacion",
+      value: address,
+    },
+    {
+      key: "phone",
+      href: `tel:${phone.replace(/\s/g, "")}`,
+      external: false,
+      icon: Phone,
+      label: "Telefono",
+      value: phone,
+    },
+    {
+      key: "email",
+      href: `mailto:${email}`,
+      external: false,
+      icon: Mail,
+      label: "Correo",
+      value: email,
+    },
+  ] as const;
+
   return (
     <section className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14 lg:px-6">
       <FadeIn>
@@ -36,64 +59,23 @@ export function SiteInfoSection({
           </div>
 
           <div className="grid gap-px bg-[var(--border)] sm:grid-cols-3">
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex flex-col gap-3 bg-white p-5 transition hover:bg-[var(--accent-gold)]/5 sm:p-6"
-            >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent-gold)]/12 text-[var(--accent-gold)] transition group-hover:bg-[var(--accent-gold)]/20">
-                <MapPin size={20} strokeWidth={1.75} />
-              </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-gold)]">Ubicacion</p>
-                <p className="mt-1 text-sm leading-relaxed text-[var(--foreground)]">{address}</p>
-              </div>
-            </a>
-
-            <a
-              href={`tel:${phone.replace(/\s/g, "")}`}
-              className="group flex flex-col gap-3 bg-white p-5 transition hover:bg-[var(--accent-gold)]/5 sm:p-6"
-            >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent-gold)]/12 text-[var(--accent-gold)] transition group-hover:bg-[var(--accent-gold)]/20">
-                <Phone size={20} strokeWidth={1.75} />
-              </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-gold)]">Telefono</p>
-                <p className="mt-1 text-sm text-[var(--foreground)]">{phone}</p>
-              </div>
-            </a>
-
-            <a
-              href={`mailto:${email}`}
-              className="group flex flex-col gap-3 bg-white p-5 transition hover:bg-[var(--accent-gold)]/5 sm:p-6"
-            >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent-gold)]/12 text-[var(--accent-gold)] transition group-hover:bg-[var(--accent-gold)]/20">
-                <Mail size={20} strokeWidth={1.75} />
-              </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-gold)]">Correo</p>
-                <p className="mt-1 break-all text-sm text-[var(--foreground)]">{email}</p>
-              </div>
-            </a>
+            {contactItems.map(({ key, href, external, icon: Icon, label, value }) => (
+              <a
+                key={key}
+                href={href}
+                {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="group flex flex-col items-center bg-white p-5 text-center transition hover:bg-[var(--accent-gold)]/5 sm:p-6"
+              >
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent-gold)]/12 text-[var(--accent-gold)] transition group-hover:bg-[var(--accent-gold)]/20">
+                  <Icon size={20} strokeWidth={1.75} />
+                </span>
+                <div className="mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-gold)]">{label}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--foreground)]">{value}</p>
+                </div>
+              </a>
+            ))}
           </div>
-
-          {openingHours.length > 0 ? (
-            <div className="border-t border-[var(--border)] bg-[var(--background-secondary)]/50 px-6 py-5 sm:px-8">
-              <p className="mb-3 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--accent-gold)]">
-                <Clock size={14} />
-                Horarios
-              </p>
-              <ul className="mx-auto flex max-w-xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6">
-                {openingHours.map((row) => (
-                  <li key={row.day} className="flex justify-between gap-4 text-sm sm:flex-col sm:gap-0 sm:text-center">
-                    <span className="font-medium text-[var(--foreground)]">{row.day}</span>
-                    <span className="text-[var(--foreground-muted)]">{row.hours}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </div>
       </FadeIn>
     </section>
