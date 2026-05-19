@@ -81,6 +81,8 @@ create table if not exists public.event_banners (
 );
 alter table public.event_banners alter column title drop not null;
 alter table public.event_banners add column if not exists event_date date;
+alter table public.event_banners add column if not exists reservation_start_time time;
+alter table public.event_banners add column if not exists reservation_end_time time;
 
 create table if not exists public.event_banner_restaurants (
   event_id uuid not null references public.event_banners(id) on delete cascade,
@@ -379,6 +381,30 @@ alter table public.reservations drop constraint if exists reservations_guests_ch
 alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);
 
 alter table public.reservations add column if not exists event_id uuid references public.event_banners(id) on delete set null;
+
+create table if not exists public.restaurant_profiles (
+  restaurant public.restaurant_key primary key,
+  reservation_start_time time not null default '13:00',
+  reservation_end_time time not null default '22:00',
+  display_hours_text text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+insert into public.restaurant_profiles (restaurant, reservation_start_time, reservation_end_time, display_hours_text)
+values
+  ('cbari', '13:00', '22:00', ''),
+  ('la_posada', '13:00', '22:00', ''),
+  ('la_churrasqueria', '13:00', '22:00', '')
+on conflict (restaurant) do nothing;
+
+alter table public.restaurant_profiles enable row level security;
+
+drop policy if exists "Public read restaurant profiles" on public.restaurant_profiles;
+create policy "Public read restaurant profiles" on public.restaurant_profiles for select using (true);
+
+drop policy if exists "Admin manage restaurant profiles" on public.restaurant_profiles;
+create policy "Admin manage restaurant profiles" on public.restaurant_profiles
+  for all using (public.is_app_admin()) with check (public.is_app_admin());
 
 -- Aviso en panel admin (Realtime): en Supabase, Database > Publications > supabase_realtime,
 -- agrega la tabla public.reservations si los INSERT no disparan el canal en el cliente.

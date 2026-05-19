@@ -36,24 +36,43 @@ export async function createGalleryItem(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function updateSettings(formData: FormData) {
+export type SettingsFormState = {
+  success: boolean;
+  error?: string;
+};
+
+function emptyToNull(value: FormDataEntryValue | null): string | null {
+  const s = String(value ?? "").trim();
+  return s || null;
+}
+
+export async function updateSettings(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
   await ensureAdmin();
   const supabase = createClient();
-  await supabase.from("site_settings").upsert(
-    {
-      id: 1,
-      hero_title: String(formData.get("hero_title")),
-      instagram_url: String(formData.get("instagram_url") || "") || null,
-      facebook_url: String(formData.get("facebook_url") || "") || null,
-      tiktok_url: String(formData.get("tiktok_url") || "") || null,
-      whatsapp_url: String(formData.get("whatsapp_url") || "") || null,
-      about_text: String(formData.get("about_text")),
-      address: String(formData.get("address")),
-      phone: String(formData.get("phone")),
-      email: String(formData.get("email")),
-    } as never,
-    { onConflict: "id" },
-  );
+
+  const { error } = await supabase
+    .from("site_settings")
+    .update({
+      hero_title: String(formData.get("hero_title") ?? "").trim(),
+      about_text: String(formData.get("about_text") ?? "").trim(),
+      address: String(formData.get("address") ?? "").trim(),
+      phone: String(formData.get("phone") ?? "").trim(),
+      email: String(formData.get("email") ?? "").trim(),
+      instagram_url: emptyToNull(formData.get("instagram_url")),
+      facebook_url: emptyToNull(formData.get("facebook_url")),
+      tiktok_url: emptyToNull(formData.get("tiktok_url")),
+      whatsapp_url: emptyToNull(formData.get("whatsapp_url")),
+    } as never)
+    .eq("id", 1);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
   revalidatePath("/admin/configuracion");
   revalidatePath("/");
+  return { success: true };
 }

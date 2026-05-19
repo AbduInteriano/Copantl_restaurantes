@@ -1,11 +1,12 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { RESTAURANTS, type RestaurantKey } from "@/lib/restaurants";
 import { uploadAdminImage } from "@/lib/upload-admin-image";
+import type { RestaurantProfile } from "@/lib/restaurant-profiles";
 
 export type RestaurantMenuRow = {
   id: string;
@@ -17,9 +18,10 @@ export type RestaurantMenuRow = {
 
 type Props = {
   items: RestaurantMenuRow[];
+  profiles: RestaurantProfile[];
 };
 
-export function RestaurantMenusAdminManager({ items }: Props) {
+export function RestaurantMenusAdminManager({ items, profiles }: Props) {
   const [activeRestaurant, setActiveRestaurant] = useState<RestaurantKey>("la_churrasqueria");
   const [files, setFiles] = useState<File[]>([]);
   const [status, setStatus] = useState("");
@@ -36,6 +38,36 @@ export function RestaurantMenusAdminManager({ items }: Props) {
   );
 
   const activeMeta = RESTAURANTS.find((r) => r.key === activeRestaurant)!;
+  const activeProfile = profiles.find((p) => p.restaurant === activeRestaurant);
+  const [hoursText, setHoursText] = useState(activeProfile?.display_hours_text ?? "");
+
+  useEffect(() => {
+    setHoursText(activeProfile?.display_hours_text ?? "");
+  }, [activeRestaurant, activeProfile?.display_hours_text]);
+
+  async function saveDisplayHours() {
+    setLoading(true);
+    setStatus("");
+    const profile = profiles.find((p) => p.restaurant === activeRestaurant);
+    const { error } = await supabase
+      .from("restaurant_profiles")
+      .upsert(
+        {
+          restaurant: activeRestaurant,
+          display_hours_text: hoursText.trim(),
+          reservation_start_time: profile?.reservation_start_time ?? "13:00",
+          reservation_end_time: profile?.reservation_end_time ?? "22:00",
+        } as never,
+        { onConflict: "restaurant" },
+      );
+    setLoading(false);
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    setStatus("Horario de atencion guardado.");
+    router.refresh();
+  }
 
   async function onUpload(e: React.FormEvent) {
     e.preventDefault();
@@ -114,6 +146,24 @@ export function RestaurantMenusAdminManager({ items }: Props) {
         <p className="text-sm text-[var(--admin-muted)]">
           Sube una o varias imagenes (PNG, JPG). Se mostraran en orden en el sitio publico.
         </p>
+        <label className="block text-sm text-[var(--admin-muted)]">
+          Horario del restaurante (texto en la tarjeta del menu)
+          <textarea
+            value={hoursText}
+            onChange={(e) => setHoursText(e.target.value)}
+            rows={3}
+            placeholder="Ej. Lun - Dom: 12:00 m. - 10:00 p. m."
+            className="mt-1 w-full rounded-md border bg-transparent p-3 text-sm"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => void saveDisplayHours()}
+          className="rounded-md border border-[var(--admin-border)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-60"
+        >
+          Guardar horario en tarjeta
+        </button>
         <input
           type="file"
           accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"

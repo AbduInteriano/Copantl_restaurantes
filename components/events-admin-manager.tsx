@@ -21,6 +21,8 @@ type Props = {
 export function EventsAdminManager({ items }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [eventDate, setEventDate] = useState("");
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("22:00");
   const [title, setTitle] = useState("");
   const [selectedRestaurants, setSelectedRestaurants] = useState<RestaurantKey[]>(["cbari"]);
   const [status, setStatus] = useState("");
@@ -58,6 +60,10 @@ export function EventsAdminManager({ items }: Props) {
       setStatus("Selecciona al menos un restaurante para el evento.");
       return;
     }
+    if (!startTime || !endTime || startTime >= endTime) {
+      setStatus("Indica un horario de reservas valido (inicio antes que fin).");
+      return;
+    }
 
     setLoading(true);
     setStatus("");
@@ -70,6 +76,8 @@ export function EventsAdminManager({ items }: Props) {
           title: title.trim() || null,
           image_url: publicUrl,
           event_date: eventDate,
+          reservation_start_time: startTime,
+          reservation_end_time: endTime,
           sort_order: items.length + 1,
         } as never)
         .select("id")
@@ -81,6 +89,8 @@ export function EventsAdminManager({ items }: Props) {
 
       setFile(null);
       setEventDate("");
+      setStartTime("18:00");
+      setEndTime("22:00");
       setTitle("");
       setSelectedRestaurants(["cbari"]);
       setStatus("Evento agregado.");
@@ -94,6 +104,22 @@ export function EventsAdminManager({ items }: Props) {
 
   async function deleteItem(id: string) {
     await supabase.from("event_banners").delete().eq("id", id);
+    router.refresh();
+  }
+
+  async function updateEventTimes(id: string, start: string, end: string) {
+    if (!start || !end || start >= end) {
+      setStatus("Horario de reservas invalido.");
+      return;
+    }
+    const { error } = await supabase
+      .from("event_banners")
+      .update({ reservation_start_time: start, reservation_end_time: end } as never)
+      .eq("id", id);
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
     router.refresh();
   }
 
@@ -153,6 +179,28 @@ export function EventsAdminManager({ items }: Props) {
             className="mt-1 w-full rounded-md border bg-transparent p-3"
           />
         </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm text-[var(--foreground-muted)]">
+            Hora inicio reservas
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              required
+              className="mt-1 w-full rounded-md border bg-transparent p-3"
+            />
+          </label>
+          <label className="block text-sm text-[var(--foreground-muted)]">
+            Hora fin reservas
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              required
+              className="mt-1 w-full rounded-md border bg-transparent p-3"
+            />
+          </label>
+        </div>
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-[var(--foreground-muted)]">Restaurantes del evento</legend>
           <div className="flex flex-wrap gap-3">
@@ -185,6 +233,7 @@ export function EventsAdminManager({ items }: Props) {
             item={item}
             onDelete={() => void deleteItem(item.id)}
             onDateChange={(date) => void updateEventDate(item.id, date)}
+            onTimesChange={(start, end) => void updateEventTimes(item.id, start, end)}
             onTitleBlur={(t) => {
               if ((item.title ?? "") !== t.trim()) void updateTitle(item.id, t);
             }}
@@ -200,15 +249,19 @@ function EventAdminCard({
   item,
   onDelete,
   onDateChange,
+  onTimesChange,
   onTitleBlur,
   onRestaurantsChange,
 }: {
   item: EventBannerAdmin;
   onDelete: () => void;
   onDateChange: (date: string) => void;
+  onTimesChange: (start: string, end: string) => void;
   onTitleBlur: (title: string) => void;
   onRestaurantsChange: (restaurants: RestaurantKey[]) => void;
 }) {
+  const [startTime, setStartTime] = useState(item.reservation_start_time?.slice(0, 5) ?? "18:00");
+  const [endTime, setEndTime] = useState(item.reservation_end_time?.slice(0, 5) ?? "22:00");
   const [localRestaurants, setLocalRestaurants] = useState<RestaurantKey[]>(item.restaurants);
 
   function toggle(key: RestaurantKey) {
@@ -241,6 +294,32 @@ function EventAdminCard({
             onChange={(e) => onDateChange(e.target.value)}
           />
         </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-xs text-[var(--foreground-muted)]">
+            Inicio reservas
+            <input
+              type="time"
+              value={startTime}
+              className="mt-1 w-full rounded-md border bg-transparent p-2 text-sm"
+              onChange={(e) => {
+                setStartTime(e.target.value);
+                onTimesChange(e.target.value, endTime);
+              }}
+            />
+          </label>
+          <label className="block text-xs text-[var(--foreground-muted)]">
+            Fin reservas
+            <input
+              type="time"
+              value={endTime}
+              className="mt-1 w-full rounded-md border bg-transparent p-2 text-sm"
+              onChange={(e) => {
+                setEndTime(e.target.value);
+                onTimesChange(startTime, e.target.value);
+              }}
+            />
+          </label>
+        </div>
         <div className="space-y-1">
           <p className="text-xs font-medium text-[var(--foreground-muted)]">Restaurantes</p>
           <div className="flex flex-wrap gap-2">

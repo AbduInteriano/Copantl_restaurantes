@@ -15,9 +15,10 @@ export type RestaurantMenuImage = {
 
 type Props = {
   items: RestaurantMenuImage[];
+  displayHoursByRestaurant?: Partial<Record<RestaurantKey, string>>;
 };
 
-export function RestaurantMenusDisplay({ items }: Props) {
+export function RestaurantMenusDisplay({ items, displayHoursByRestaurant = {} }: Props) {
   const [openRestaurant, setOpenRestaurant] = useState<RestaurantKey | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -66,6 +67,7 @@ export function RestaurantMenusDisplay({ items }: Props) {
         {RESTAURANTS.map((restaurant, sectionIndex) => {
           const count = items.filter((i) => i.restaurant === restaurant.key).length;
           const hasMenu = count > 0;
+          const hoursText = displayHoursByRestaurant[restaurant.key]?.trim();
 
           return (
             <FadeIn key={restaurant.key} delay={sectionIndex * 0.06}>
@@ -82,6 +84,11 @@ export function RestaurantMenusDisplay({ items }: Props) {
                   <UtensilsCrossed size={22} strokeWidth={1.75} />
                 </span>
                 <h3 className="section-title text-xl text-[var(--accent-gold-dark)] sm:text-2xl">{restaurant.shortLabel}</h3>
+                {hoursText ? (
+                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-[var(--foreground-muted)]">
+                    {hoursText}
+                  </p>
+                ) : null}
                 {hasMenu ? (
                   <span className="mt-5 inline-flex items-center text-sm font-semibold text-[var(--accent-gold)]">
                     Ver menu

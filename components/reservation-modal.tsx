@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { ReservationBookingForm } from "@/components/reservation-form";
 import { ReservationSuccessActions } from "@/components/reservation-success-actions";
 import type { BookableEvent } from "@/lib/events";
+import type { RestaurantProfile } from "@/lib/restaurant-profiles";
 
 type Props = {
   triggerLabel?: string;
   triggerClassName?: string;
   whatsappHref: string;
   bookableEvents?: BookableEvent[];
+  restaurantProfiles?: RestaurantProfile[];
 };
 
 const termsText =
@@ -21,6 +23,7 @@ export function ReservationModal({
   triggerClassName = "btn-primary min-h-[48px] px-6 py-3.5 text-base sm:min-h-[52px] sm:text-lg",
   whatsappHref,
   bookableEvents = [],
+  restaurantProfiles = [],
 }: Props) {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<"form" | "success">("form");
@@ -58,6 +61,7 @@ export function ReservationModal({
                   showTerms
                   termsText={termsText}
                   bookableEvents={bookableEvents}
+                  restaurantProfiles={restaurantProfiles}
                   onSuccess={() => setPhase("success")}
                 />
               ) : (

@@ -28,7 +28,7 @@ export function FloatingCornerActions({ items, socialHrefs }: Props) {
         <FloatingSocialButton hrefs={socialHrefs} />
       </div>
       <div className="pointer-events-auto">
-        <FloatingEventsButton items={items} whatsappHref={socialHrefs.whatsappHref} embedded />
+        <FloatingEventsButton items={items} whatsappHref={socialHrefs.whatsappHref ?? ""} embedded />
       </div>
     </div>
   );

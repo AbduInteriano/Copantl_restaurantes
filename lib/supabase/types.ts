@@ -114,6 +114,8 @@ export type Database = {
           title: string | null;
           image_url: string;
           event_date: string | null;
+          reservation_start_time: string | null;
+          reservation_end_time: string | null;
           sort_order: number;
           is_active: boolean;
           created_at: string;
@@ -123,11 +125,30 @@ export type Database = {
           title?: string | null;
           image_url: string;
           event_date?: string | null;
+          reservation_start_time?: string | null;
+          reservation_end_time?: string | null;
           sort_order?: number;
           is_active?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["event_banners"]["Insert"]>;
+      };
+      restaurant_profiles: {
+        Row: {
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          reservation_start_time: string;
+          reservation_end_time: string;
+          display_hours_text: string;
+          updated_at: string;
+        };
+        Insert: {
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          reservation_start_time?: string;
+          reservation_end_time?: string;
+          display_hours_text?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["restaurant_profiles"]["Insert"]>;
       };
       event_banner_restaurants: {
         Row: {

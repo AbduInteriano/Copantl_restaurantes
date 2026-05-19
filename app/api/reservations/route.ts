@@ -18,7 +18,13 @@ export async function POST(req: Request) {
   const area = parseReservationRestaurant(payload.area);
   const reservationDate = String(payload.reservation_date ?? "");
 
-  const eventCheck = await validateReservationEvent(payload.event_id, area, reservationDate);
+  const reservationTime = String(payload.reservation_time ?? "");
+  const eventCheck = await validateReservationEvent(
+    payload.event_id,
+    area,
+    reservationDate,
+    reservationTime,
+  );
   if (!eventCheck.ok) {
     return NextResponse.json({ error: eventCheck.error }, { status: 400 });
   }

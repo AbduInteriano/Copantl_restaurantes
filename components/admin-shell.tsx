@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CalendarHeart,
+  Clock,
   ChevronLeft,
   ChevronRight,
   Images,
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/admin", label: "Reservas", icon: LayoutDashboard, adminOnly: false },
   { href: "/admin/menu", label: "Menus", icon: UtensilsCrossed, adminOnly: true },
   { href: "/admin/eventos", label: "Eventos", icon: CalendarHeart, adminOnly: true },
+  { href: "/admin/horarios", label: "Horario reservas", icon: Clock, adminOnly: true },
   { href: "/admin/galeria", label: "Galeria", icon: Images, adminOnly: true },
   { href: "/admin/configuracion", label: "Configuracion", icon: Settings, adminOnly: true },
   { href: "/admin/usuarios", label: "Usuarios", icon: Users, adminOnly: true },

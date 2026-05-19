@@ -7,6 +7,7 @@ import { SiteInfoSection } from "@/components/site-info-section";
 import { FadeIn } from "@/components/fade-in";
 import { fallbackSettings } from "@/lib/data";
 import { mapRowsToBookableEvents } from "@/lib/events";
+import { DEFAULT_RESTAURANT_PROFILES, mapRowsToRestaurantProfiles } from "@/lib/restaurant-profiles";
 import { resolveSocialHrefs } from "@/lib/social-hrefs";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
@@ -16,7 +17,8 @@ const GALLERY_MAX = 10;
 
 export default async function Home() {
   const supabase = createClient();
-  const [{ data: settings }, { data: menuImages }, { data: gallery }, { data: events }] = await Promise.all([
+  const [{ data: settings }, { data: menuImages }, { data: gallery }, { data: events }, { data: profiles }] =
+    await Promise.all([
     supabase.from("site_settings").select("*").eq("id", 1).maybeSingle(),
     supabase
       .from("restaurant_menu_images")
@@ -31,10 +33,13 @@ export default async function Home() {
       .order("sort_order", { ascending: true }),
     supabase
       .from("event_banners")
-      .select("id, title, image_url, event_date, sort_order, event_banner_restaurants(restaurant)")
+      .select(
+        "id, title, image_url, event_date, reservation_start_time, reservation_end_time, sort_order, event_banner_restaurants(restaurant)",
+      )
       .eq("is_active", true)
       .order("event_date", { ascending: true, nullsFirst: false })
       .order("sort_order", { ascending: true }),
+    supabase.from("restaurant_profiles").select("*"),
   ]);
 
   const site = settings ?? fallbackSettings;
@@ -54,6 +59,13 @@ export default async function Home() {
     image_url: g.image_url,
     title: g.title,
   }));
+
+  const restaurantProfiles = profiles?.length
+    ? mapRowsToRestaurantProfiles(profiles)
+    : DEFAULT_RESTAURANT_PROFILES;
+  const displayHoursByRestaurant = Object.fromEntries(
+    restaurantProfiles.map((p) => [p.restaurant, p.display_hours_text]),
+  ) as Record<RestaurantKey, string>;
 
   const bookableEvents = mapRowsToBookableEvents(events ?? []);
   const calendarEvents = (events ?? []).map((e) => {
@@ -80,6 +92,8 @@ export default async function Home() {
     tiktokUrl: site.tiktok_url,
     whatsappUrl: site.whatsapp_url,
   });
+  const whatsappHref =
+    socialHrefs.whatsappHref ?? `https://wa.me/${site.phone.replace(/[^\d]/g, "")}`;
 
   return (
     <main className="overflow-x-hidden">
@@ -88,7 +102,12 @@ export default async function Home() {
         aria-label="Inicio"
       >
         <FadeIn>
-          <HeroLanding subtitle="By Copantl" whatsappHref={socialHrefs.whatsappHref} bookableEvents={bookableEvents} />
+          <HeroLanding
+            subtitle="By Copantl"
+            whatsappHref={whatsappHref}
+            bookableEvents={bookableEvents}
+            restaurantProfiles={restaurantProfiles}
+          />
         </FadeIn>
       </section>
 
@@ -101,7 +120,12 @@ export default async function Home() {
           email={site.email}
         />
 
-        <EventsPanel items={calendarEvents} bookableEvents={bookableEvents} whatsappHref={socialHrefs.whatsappHref} />
+        <EventsPanel
+          items={calendarEvents}
+          bookableEvents={bookableEvents}
+          restaurantProfiles={restaurantProfiles}
+          whatsappHref={whatsappHref}
+        />
 
         <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16 lg:px-6">
           <FadeIn>
@@ -110,7 +134,7 @@ export default async function Home() {
               Elige un restaurante para ver su menu completo.
             </p>
           </FadeIn>
-          <RestaurantMenusDisplay items={menus} />
+          <RestaurantMenusDisplay items={menus} displayHoursByRestaurant={displayHoursByRestaurant} />
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-5 pb-12 sm:px-8 sm:pb-16 lg:px-6">

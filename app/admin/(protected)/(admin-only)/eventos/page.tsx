@@ -23,7 +23,7 @@ export default async function EventosPage() {
     <div className="space-y-6">
       <h1 className="section-title text-4xl">Eventos</h1>
       <p className="text-sm text-[var(--foreground-muted)]">
-        Asigna fecha y uno o mas restaurantes. Los clientes podran reservar para ese evento en el restaurante elegido.
+        Asigna fecha, horario de reservas y restaurantes. Los clientes podran reservar desde el calendario con evento y horario preseleccionados.
       </p>
       <EventsAdminManager items={items} />
     </div>

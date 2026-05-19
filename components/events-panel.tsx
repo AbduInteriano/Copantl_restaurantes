@@ -1,8 +1,9 @@
 "use client";
 
 import { EventsCalendarView, type CalendarEventItem } from "@/components/events-calendar-view";
-import { ReservationBookingForm } from "@/components/reservation-form";
+import { ReservationBookingForm, type ReservationPrefill } from "@/components/reservation-form";
 import type { BookableEvent } from "@/lib/events";
+import type { RestaurantProfile } from "@/lib/restaurant-profiles";
 import { ReservationSuccessActions } from "@/components/reservation-success-actions";
 import { CalendarDays, CalendarHeart, ChevronLeft, ChevronRight, X, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -10,16 +11,23 @@ import { useEffect, useState } from "react";
 type Props = {
   items: CalendarEventItem[];
   bookableEvents?: BookableEvent[];
+  restaurantProfiles?: RestaurantProfile[];
   whatsappHref: string;
 };
 
 type SheetView = "events" | "reserve" | "success";
 
-export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props) {
+export function EventsPanel({
+  items,
+  bookableEvents = [],
+  restaurantProfiles = [],
+  whatsappHref,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [sheetView, setSheetView] = useState<SheetView>("events");
   const [reserveKey, setReserveKey] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
+  const [reservePrefill, setReservePrefill] = useState<ReservationPrefill | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -38,10 +46,13 @@ export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props)
     setOpen(false);
     setSheetView("events");
     setSelectedEvent(null);
+    setReservePrefill(null);
   }
 
-  function openReserveFromEvents() {
+  function openReserveForEvent(eventId: string) {
+    setReservePrefill({ eventId });
     setReserveKey((k) => k + 1);
+    setSelectedEvent(null);
     setOpen(true);
     setSheetView("reserve");
   }
@@ -83,7 +94,10 @@ export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props)
                   {sheetView === "reserve" ? (
                     <button
                       type="button"
-                      onClick={() => setSheetView("events")}
+                      onClick={() => {
+                        setSheetView("events");
+                        setReservePrefill(null);
+                      }}
                       className="shrink-0 rounded-lg border border-[var(--border)] p-2 text-[var(--foreground-muted)] transition hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
                       aria-label="Volver a eventos"
                     >
@@ -122,17 +136,6 @@ export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props)
                   ) : (
                     <EventsCalendarView items={items} onSelectEvent={setSelectedEvent} />
                   )}
-
-                  <div className="mt-6 flex flex-col gap-3 border-t border-[var(--border)]/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-[var(--foreground-muted)]">¿Quieres reservar en Copantl?</p>
-                    <button
-                      type="button"
-                      onClick={openReserveFromEvents}
-                      className="btn-primary w-full px-6 py-3 text-center text-sm sm:w-auto sm:min-w-[200px]"
-                    >
-                      Reservar
-                    </button>
-                  </div>
                 </>
               )}
 
@@ -142,6 +145,8 @@ export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props)
                   compact
                   showTerms
                   bookableEvents={bookableEvents}
+                  restaurantProfiles={restaurantProfiles}
+                  initialPrefill={reservePrefill}
                   onSuccess={() => setSheetView("success")}
                 />
               )}
@@ -184,12 +189,21 @@ export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props)
               ) : (
                 <span className="w-10 shrink-0" />
               )}
-              <div className="flex-1 overflow-auto">
+              <div className="relative flex-1 overflow-auto">
                 <img
                   src={selectedEvent.image_url}
                   alt={selectedEvent.title ?? "Banner de evento"}
                   className="mx-auto h-auto max-h-[65vh] w-auto rounded-lg object-contain"
                 />
+                <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/75 via-black/40 to-transparent px-4 pb-5 pt-16">
+                  <button
+                    type="button"
+                    onClick={() => openReserveForEvent(selectedEvent.id)}
+                    className="btn-primary min-w-[200px] px-8 py-3 text-center text-sm shadow-lg"
+                  >
+                    Reservar este evento
+                  </button>
+                </div>
               </div>
               {items.length > 1 ? (
                 <button type="button" onClick={showNext} className="shrink-0 rounded-lg border border-[var(--border)] p-2 hover:bg-[var(--surface)]">
@@ -198,18 +212,6 @@ export function EventsPanel({ items, bookableEvents = [], whatsappHref }: Props)
               ) : (
                 <span className="w-10 shrink-0" />
               )}
-            </div>
-            <div className="flex flex-col gap-3 border-t border-[var(--border)] p-4 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedEvent(null);
-                  openReserveFromEvents();
-                }}
-                className="btn-primary w-full px-6 py-3 text-center text-sm sm:w-auto"
-              >
-                Reservar
-              </button>
             </div>
           </div>
         </div>
