@@ -2,18 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import { canManageContent, getSessionRole } from "@/lib/admin-auth";
+import { adminPath } from "@/lib/admin-path";
 import { createClient } from "@/lib/supabase/server";
 
-async function ensureAdmin() {
+async function ensureContentAccess() {
   const session = await getSessionRole();
-  if (!session || !isAdminRole(session.role)) {
-    redirect("/admin");
+  if (!session || !canManageContent(session.role)) {
+    redirect(adminPath());
   }
 }
 
 export async function createPromotion(formData: FormData) {
-  await ensureAdmin();
+  await ensureContentAccess();
   const supabase = createClient();
   await supabase.from("promotions").insert({
     title: String(formData.get("title")),
@@ -25,14 +26,14 @@ export async function createPromotion(formData: FormData) {
 }
 
 export async function createGalleryItem(formData: FormData) {
-  await ensureAdmin();
+  await ensureContentAccess();
   const supabase = createClient();
   await supabase.from("gallery_items").insert({
     title: String(formData.get("title")),
     image_url: String(formData.get("image_url")),
     sort_order: Number(formData.get("sort_order") ?? 0),
   } as never);
-  revalidatePath("/admin/galeria");
+  revalidatePath(adminPath("/galeria"));
   revalidatePath("/");
 }
 
@@ -50,7 +51,7 @@ export async function updateSettings(
   _prev: SettingsFormState,
   formData: FormData,
 ): Promise<SettingsFormState> {
-  await ensureAdmin();
+  await ensureContentAccess();
   const supabase = createClient();
 
   const { error } = await supabase
@@ -72,7 +73,7 @@ export async function updateSettings(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/configuracion");
+  revalidatePath(adminPath("/configuracion"));
   revalidatePath("/");
   return { success: true };
 }

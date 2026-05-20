@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
+import { canManageReservations, getSessionRole } from "@/lib/admin-auth";
 import { parseReservationRestaurant } from "@/lib/restaurants";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await getSessionRole();
+  if (!session || !canManageReservations(session.role)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
+
+  const supabase = createClient();
 
   const payload = await req.json();
   const guests = Number(payload.guests);

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import { canManageContent, getSessionRole } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 const SETTINGS_LOGO_FIELDS = new Set(["logo_url", "logo_url_2", "logo_url_3"]);
 
 export async function PATCH(req: Request) {
   const session = await getSessionRole();
-  if (!session || !isAdminRole(session.role)) {
+  if (!session || !canManageContent(session.role)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   }
 

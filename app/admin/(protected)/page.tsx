@@ -1,30 +1,48 @@
-import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { AdminReservationsDashboard } from "@/components/admin-reservations-dashboard";
-import type { Database } from "@/lib/supabase/types";
+import {
+  canAccessReporting,
+  canManageContent,
+  canManageReservations,
+  getSessionRole,
+} from "@/lib/admin-auth";
+import { adminPath } from "@/lib/admin-path";
+import { createClient } from "@/lib/supabase/server";
 
-export default async function AdminDashboard() {
+export default async function AdminReservationsPage() {
+  const session = await getSessionRole();
+  if (!session) redirect(adminPath("/login"));
+
+  if (!canManageReservations(session.role)) {
+    if (canManageContent(session.role)) {
+      redirect(adminPath("/menu"));
+    }
+    if (canAccessReporting(session.role)) {
+      redirect(adminPath("/reporteria"));
+    }
+    redirect(adminPath("/login"));
+  }
+
   const supabase = createClient();
-  const [{ data }, { data: events }] = await Promise.all([
-    supabase
-      .from("reservations")
-      .select("*")
-      .order("reservation_date", { ascending: false })
-      .order("reservation_time", { ascending: false })
-      .order("created_at", { ascending: false }),
-    supabase.from("event_banners").select("id, title"),
-  ]);
-  const reservations = (data ?? []) as Database["public"]["Tables"]["reservations"]["Row"][];
+  const { data: reservations } = await supabase
+    .from("reservations")
+    .select("*, event_banners(title)")
+    .order("reservation_date", { ascending: true })
+    .order("reservation_time", { ascending: true });
+
+  const { data: events } = await supabase
+    .from("event_banners")
+    .select("id, title")
+    .eq("is_active", true);
+
   const eventTitles = Object.fromEntries(
-    ((events ?? []) as { id: string; title: string | null }[]).map((e) => [
-      e.id,
-      e.title?.trim() || "Evento",
-    ]),
+    (events ?? []).map((e) => {
+      const row = e as { id: string; title: string | null };
+      return [row.id, row.title?.trim() || "Evento"];
+    }),
   );
 
   return (
-    <div className="space-y-6">
-      <h1 className="section-title text-4xl">Dashboard de Reservas</h1>
-      <AdminReservationsDashboard reservations={reservations} eventTitles={eventTitles} />
-    </div>
+    <AdminReservationsDashboard reservations={reservations ?? []} eventTitles={eventTitles} />
   );
 }

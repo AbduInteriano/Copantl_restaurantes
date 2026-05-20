@@ -197,15 +197,30 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["reservations"]["Insert"]>;
       };
+      admin_login_lockouts: {
+        Row: {
+          email: string;
+          failed_attempts: number;
+          locked_until: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          email: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["admin_login_lockouts"]["Insert"]>;
+      };
       user_profiles: {
         Row: {
           user_id: string;
-          role: "admin" | "supervisor";
+          role: "super_admin" | "admin" | "supervisor" | "reservaciones" | "reporteria";
           created_at: string;
         };
         Insert: {
           user_id: string;
-          role: "admin" | "supervisor";
+          role: "super_admin" | "admin" | "supervisor" | "reservaciones" | "reporteria";
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["user_profiles"]["Insert"]>;

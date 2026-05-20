@@ -175,12 +175,22 @@ create unique index if not exists reservations_confirmada_mesa_slot_uidx
 on public.reservations (reservation_date, reservation_time, mesa)
 where status = 'confirmada' and mesa is not null;
 
--- Perfiles de panel: administrador (todo) vs supervisor (solo reservas)
+-- Perfiles de panel: roles de acceso al admin
 do $$ begin
-  create type public.app_role as enum ('admin', 'supervisor');
+  create type public.app_role as enum (
+    'super_admin',
+    'admin',
+    'supervisor',
+    'reservaciones',
+    'reporteria'
+  );
 exception
   when duplicate_object then null;
 end $$;
+
+alter type public.app_role add value if not exists 'super_admin';
+alter type public.app_role add value if not exists 'reservaciones';
+alter type public.app_role add value if not exists 'reporteria';
 
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users (id) on delete cascade,
@@ -192,6 +202,32 @@ insert into public.user_profiles (user_id, role)
 select id, 'admin'::public.app_role from auth.users
 on conflict (user_id) do nothing;
 
+create or replace function public.current_app_role()
+returns public.app_role
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  r public.app_role;
+  uemail text;
+begin
+  if auth.uid() is null then
+    return null;
+  end if;
+  select email into uemail from auth.users where id = auth.uid();
+  if lower(coalesce(uemail, '')) = 'abdu.interiano@copantl.com' then
+    return 'super_admin'::public.app_role;
+  end if;
+  select role into r from public.user_profiles where user_id = auth.uid();
+  if r is null then
+    return 'admin'::public.app_role;
+  end if;
+  return r;
+end;
+$$;
+
 create or replace function public.is_app_admin()
 returns boolean
 language plpgsql
@@ -199,21 +235,77 @@ stable
 security definer
 set search_path = public
 as $$
+declare
+  r public.app_role;
 begin
-  if auth.uid() is null then
+  r := public.current_app_role();
+  if r is null then
     return false;
   end if;
-  if not exists (select 1 from public.user_profiles where user_id = auth.uid()) then
-    return true;
-  end if;
-  return exists (
-    select 1 from public.user_profiles
-    where user_id = auth.uid() and role = 'admin'::public.app_role
+  return r in (
+    'super_admin'::public.app_role,
+    'admin'::public.app_role,
+    'supervisor'::public.app_role
   );
 end;
 $$;
 
+create or replace function public.can_staff_reservations()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  r public.app_role;
+begin
+  r := public.current_app_role();
+  if r is null then
+    return false;
+  end if;
+  return r in (
+    'super_admin'::public.app_role,
+    'admin'::public.app_role,
+    'reservaciones'::public.app_role
+  );
+end;
+$$;
+
+create or replace function public.can_access_reports()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  r public.app_role;
+begin
+  r := public.current_app_role();
+  if r is null then
+    return false;
+  end if;
+  return r in (
+    'super_admin'::public.app_role,
+    'admin'::public.app_role,
+    'supervisor'::public.app_role,
+    'reporteria'::public.app_role
+  );
+end;
+$$;
+
+grant execute on function public.current_app_role() to authenticated, anon;
 grant execute on function public.is_app_admin() to authenticated, anon;
+grant execute on function public.can_staff_reservations() to authenticated, anon;
+grant execute on function public.can_access_reports() to authenticated, anon;
+
+-- Super administrador fijo por correo
+insert into public.user_profiles (user_id, role)
+select id, 'super_admin'::public.app_role
+from auth.users
+where lower(email) = 'abdu.interiano@copantl.com'
+on conflict (user_id) do update set role = excluded.role;
 
 alter table public.user_profiles enable row level security;
 
@@ -295,7 +387,12 @@ drop policy if exists "Admin full access reservations" on public.reservations;
 drop policy if exists "Staff manage reservations" on public.reservations;
 create policy "Staff manage reservations" on public.reservations
 for all to authenticated
-using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+using (public.can_staff_reservations()) with check (public.can_staff_reservations());
+
+drop policy if exists "Staff read reservations for reports" on public.reservations;
+create policy "Staff read reservations for reports" on public.reservations
+for select to authenticated
+using (public.can_access_reports());
 
 drop policy if exists "Admin full access settings" on public.site_settings;
 drop policy if exists "Admin manage settings" on public.site_settings;
@@ -405,6 +502,19 @@ create policy "Public read restaurant profiles" on public.restaurant_profiles fo
 drop policy if exists "Admin manage restaurant profiles" on public.restaurant_profiles;
 create policy "Admin manage restaurant profiles" on public.restaurant_profiles
   for all using (public.is_app_admin()) with check (public.is_app_admin());
+
+create table if not exists public.admin_login_lockouts (
+  email text primary key,
+  failed_attempts int not null default 0 check (failed_attempts >= 0),
+  locked_until timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.admin_login_lockouts enable row level security;
+
+drop policy if exists "Service role lockouts" on public.admin_login_lockouts;
+create policy "Service role lockouts" on public.admin_login_lockouts
+  for all using (false) with check (false);
 
 -- Aviso en panel admin (Realtime): en Supabase, Database > Publications > supabase_realtime,
 -- agrega la tabla public.reservations si los INSERT no disparan el canal en el cliente.

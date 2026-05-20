@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import { canManageContent, getSessionRole } from "@/lib/admin-auth";
 import { createServiceClient, hasServiceClientConfig } from "@/lib/supabase/admin";
 import { describeMissingSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -71,7 +71,7 @@ function getStorageClient(): SupabaseClient | { error: string } {
 
 export async function POST(req: Request) {
   const session = await getSessionRole();
-  if (!session || !isAdminRole(session.role)) {
+  if (!session || !canManageContent(session.role)) {
     return NextResponse.json({ error: "No autorizado. Inicia sesión como administrador." }, { status: 403 });
   }
 
