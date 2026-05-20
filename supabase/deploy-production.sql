@@ -1,7 +1,17 @@
 -- =============================================================================
 -- Copantl Reservaciones — Script completo para Supabase (producción)
 -- Ejecutar en: Supabase Dashboard → SQL Editor → New query → Run
--- Puede ejecutarse en una base vacía. Es idempotente (IF NOT EXISTS / ON CONFLICT).
+--
+-- RE-EJECUTABLE antes de producción: puedes correrlo otra vez en la misma base.
+-- Ajusta esquema, políticas, funciones, índices y datos base sin duplicar tablas.
+-- No borra reservas ni contenido del panel; solo corrige lo que falte o esté viejo.
+--
+-- Incluye COMMIT tras ampliar app_role (requerido por PostgreSQL). Ejecuta TODO el archivo
+-- de una vez en SQL Editor. Si falla solo el enum, corre el bloque "Enum app_role" y vuelve a correr todo.
+--
+-- Mesas por restaurante (producción):
+--   la_posada = 20 | cbari = 10 | la_churrasqueria = 10
+-- (el upsert de restaurant_profiles actualiza table_count en cada ejecución)
 -- =============================================================================
 
 create extension if not exists "pgcrypto";
@@ -30,10 +40,13 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
--- Si el enum ya existía solo con admin/supervisor, agrega valores nuevos:
+-- Si el enum ya existía solo con admin/supervisor, agrega valores nuevos.
+-- PostgreSQL exige COMMIT antes de usar valores recién añadidos al enum (error 55P04).
 alter type public.app_role add value if not exists 'super_admin';
 alter type public.app_role add value if not exists 'reservaciones';
 alter type public.app_role add value if not exists 'reporteria';
+
+commit;
 
 -- -----------------------------------------------------------------------------
 -- Tablas
@@ -165,7 +178,7 @@ create table if not exists public.admin_login_lockouts (
 );
 
 -- -----------------------------------------------------------------------------
--- Columnas / restricciones (bases ya existentes)
+-- Migraciones re-ejecutables (esquema en bases ya existentes)
 -- -----------------------------------------------------------------------------
 alter table public.site_settings add column if not exists logo_url text;
 alter table public.site_settings add column if not exists logo_url_2 text;
@@ -205,12 +218,23 @@ end $$;
 alter table public.reservations drop constraint if exists reservations_guests_check;
 alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);
 
-alter table public.restaurant_profiles add column if not exists table_count int not null default 10 check (table_count >= 1 and table_count <= 99);
+-- restaurant_profiles: columnas y mesas configurables por restaurante
+alter table public.restaurant_profiles add column if not exists display_hours_text text not null default '';
+alter table public.restaurant_profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.restaurant_profiles add column if not exists table_count int;
 
-update public.restaurant_profiles set table_count = 20 where restaurant = 'la_posada';
-update public.restaurant_profiles set table_count = 10 where restaurant = 'cbari';
-update public.restaurant_profiles set table_count = 10 where restaurant = 'la_churrasqueria';
+update public.restaurant_profiles
+set table_count = 10
+where table_count is null or table_count < 1 or table_count > 99;
 
+alter table public.restaurant_profiles alter column table_count set default 10;
+alter table public.restaurant_profiles alter column table_count set not null;
+
+alter table public.restaurant_profiles drop constraint if exists restaurant_profiles_table_count_check;
+alter table public.restaurant_profiles add constraint restaurant_profiles_table_count_check
+  check (table_count >= 1 and table_count <= 99);
+
+-- Quitar tope fijo de mesa 1–10 (ahora depende de table_count por restaurante)
 alter table public.reservations drop constraint if exists reservations_mesa_range;
 alter table public.reservations add constraint reservations_mesa_range check (mesa is null or mesa >= 1);
 
@@ -228,8 +252,9 @@ alter table public.admin_login_lockouts add constraint admin_login_lockouts_fail
 create unique index if not exists menu_categories_name_product_type_uidx
   on public.menu_categories (name, product_type);
 
+-- Índice de mesa ocupada: por restaurante (area) + fecha + hora + mesa
 drop index if exists public.reservations_confirmada_mesa_slot_uidx;
-create unique index if not exists reservations_confirmada_mesa_slot_uidx
+create unique index reservations_confirmada_mesa_slot_uidx
   on public.reservations (reservation_date, reservation_time, area, mesa)
   where status = 'confirmada' and mesa is not null;
 
@@ -453,12 +478,33 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.restaurant_profiles (restaurant, reservation_start_time, reservation_end_time, display_hours_text, table_count)
+-- Perfiles de restaurante + mesas de producción (re-ejecutar actualiza table_count)
+insert into public.restaurant_profiles (
+  restaurant,
+  reservation_start_time,
+  reservation_end_time,
+  display_hours_text,
+  table_count
+)
 values
   ('cbari', '13:00', '22:00', '', 10),
   ('la_posada', '13:00', '22:00', '', 20),
   ('la_churrasqueria', '13:00', '22:00', '', 10)
-on conflict (restaurant) do nothing;
+on conflict (restaurant) do update set
+  table_count = excluded.table_count,
+  reservation_start_time = coalesce(
+    public.restaurant_profiles.reservation_start_time,
+    excluded.reservation_start_time
+  ),
+  reservation_end_time = coalesce(
+    public.restaurant_profiles.reservation_end_time,
+    excluded.reservation_end_time
+  ),
+  display_hours_text = coalesce(
+    nullif(trim(public.restaurant_profiles.display_hours_text), ''),
+    excluded.display_hours_text
+  ),
+  updated_at = now();
 
 insert into public.menu_categories (name, product_type, sort_order)
 values
@@ -528,6 +574,30 @@ exception
   when duplicate_object then null;
 end $$;
 
+-- -----------------------------------------------------------------------------
+-- Verificación post-deploy (revisa la pestaña Results)
+-- -----------------------------------------------------------------------------
+select
+  restaurant,
+  table_count as mesas,
+  reservation_start_time::text as inicio_reservas,
+  reservation_end_time::text as fin_reservas
+from public.restaurant_profiles
+order by restaurant;
+
+select
+  indexname,
+  indexdef
+from pg_indexes
+where schemaname = 'public'
+  and indexname = 'reservations_confirmada_mesa_slot_uidx';
+
 -- =============================================================================
--- FIN — Revisa pasos manuales en el mensaje del asistente / README deploy
+-- FIN — Checklist manual después del SQL:
+-- 1. Auth: usuarios del panel creados en Supabase Authentication
+-- 2. .env producción: NEXT_PUBLIC_SUPABASE_*, NEXT_PUBLIC_SITE_URL,
+--    NEXT_PUBLIC_ADMIN_PANEL_SLUG, EmailJS (opcional)
+-- 3. Storage: bucket copantl_assets con políticas (este script las aplica)
+-- 4. Realtime: si el bloque DO falló, agrega public.reservations en Publications
+-- 5. Panel → Horario de reservaciones: confirma mesas 20 / 10 / 10
 -- =============================================================================

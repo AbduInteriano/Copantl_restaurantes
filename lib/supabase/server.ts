@@ -14,19 +14,14 @@ export function createClient() {
 
   return createServerClient<Database>(url, anonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      getAll() {
+        return cookieStore.getAll();
       },
-      set(name: string, value: string, options: Record<string, unknown>) {
+      setAll(cookiesToSet) {
         try {
-          cookieStore.set({ name, value, ...options });
-        } catch {
-          // Ignored in Server Components where setting cookies is not allowed.
-        }
-      },
-      remove(name: string, options: Record<string, unknown>) {
-        try {
-          cookieStore.set({ name, value: "", ...options });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
         } catch {
           // Ignored in Server Components where setting cookies is not allowed.
         }

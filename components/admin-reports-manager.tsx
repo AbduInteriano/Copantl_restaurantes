@@ -6,10 +6,14 @@ import { RESTAURANTS } from "@/lib/restaurants";
 
 function downloadFromApi(url: string, fallbackName: string) {
   return async () => {
-    const res = await fetch(url);
+    const res = await fetch(url, { method: "GET", credentials: "include" });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(typeof data.error === "string" ? data.error : "No se pudo descargar el archivo.");
+      const contentType = res.headers.get("Content-Type") ?? "";
+      if (contentType.includes("application/json")) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(typeof data.error === "string" ? data.error : "No se pudo descargar el archivo.");
+      }
+      throw new Error(`Error ${res.status}: no se pudo descargar el archivo.`);
     }
     const blob = await res.blob();
     const disposition = res.headers.get("Content-Disposition");

@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
+import { ReservationsPrintDialog } from "@/components/reservations-print-dialog";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Database } from "@/lib/supabase/types";
@@ -301,7 +302,7 @@ export function AdminReservationsDashboard({
         </p>
       )}
 
-      <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => setManualOpen((o) => !o)}
@@ -314,6 +315,9 @@ export function AdminReservationsDashboard({
         >
           Nueva reserva +
         </button>
+        <ReservationsPrintDialog reservations={reservations} eventTitles={eventTitles} />
+      </div>
+      <div className="space-y-3">
         {manualOpen && (
           <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm sm:p-6">
             <form onSubmit={submitManual} className="grid gap-3 sm:grid-cols-2">

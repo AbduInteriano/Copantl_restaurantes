@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 import { canAccessReporting, getSessionRole } from "@/lib/admin-auth";
 import { rowsToExcelBuffer } from "@/lib/excel-export";
-import { createServiceClient } from "@/lib/supabase/admin";
+import { createServiceClient, hasServiceClientConfig } from "@/lib/supabase/admin";
+import { describeMissingSupabaseEnv } from "@/lib/supabase/env";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const session = await getSessionRole();
   if (!session || !canAccessReporting(session.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  if (!hasServiceClientConfig()) {
+    return NextResponse.json(
+      { error: describeMissingSupabaseEnv() || "Falta SUPABASE_SERVICE_ROLE_KEY en el servidor." },
+      { status: 500 },
+    );
   }
 
   try {
