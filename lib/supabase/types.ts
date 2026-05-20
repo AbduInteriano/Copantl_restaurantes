@@ -139,6 +139,7 @@ export type Database = {
           reservation_start_time: string;
           reservation_end_time: string;
           display_hours_text: string;
+          table_count: number;
           updated_at: string;
         };
         Insert: {
@@ -146,6 +147,7 @@ export type Database = {
           reservation_start_time?: string;
           reservation_end_time?: string;
           display_hours_text?: string;
+          table_count?: number;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["restaurant_profiles"]["Insert"]>;

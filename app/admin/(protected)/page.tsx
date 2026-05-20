@@ -7,6 +7,7 @@ import {
   getSessionRole,
 } from "@/lib/admin-auth";
 import { adminPath } from "@/lib/admin-path";
+import { mapRowsToRestaurantProfiles } from "@/lib/restaurant-profiles";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminReservationsPage() {
@@ -24,16 +25,15 @@ export default async function AdminReservationsPage() {
   }
 
   const supabase = createClient();
-  const { data: reservations } = await supabase
-    .from("reservations")
-    .select("*, event_banners(title)")
-    .order("reservation_date", { ascending: true })
-    .order("reservation_time", { ascending: true });
-
-  const { data: events } = await supabase
-    .from("event_banners")
-    .select("id, title")
-    .eq("is_active", true);
+  const [{ data: reservations }, { data: events }, { data: profileRows }] = await Promise.all([
+    supabase
+      .from("reservations")
+      .select("*, event_banners(title)")
+      .order("reservation_date", { ascending: true })
+      .order("reservation_time", { ascending: true }),
+    supabase.from("event_banners").select("id, title").eq("is_active", true),
+    supabase.from("restaurant_profiles").select("*"),
+  ]);
 
   const eventTitles = Object.fromEntries(
     (events ?? []).map((e) => {
@@ -42,7 +42,13 @@ export default async function AdminReservationsPage() {
     }),
   );
 
+  const restaurantProfiles = mapRowsToRestaurantProfiles(profileRows ?? []);
+
   return (
-    <AdminReservationsDashboard reservations={reservations ?? []} eventTitles={eventTitles} />
+    <AdminReservationsDashboard
+      reservations={reservations ?? []}
+      eventTitles={eventTitles}
+      restaurantProfiles={restaurantProfiles}
+    />
   );
 }

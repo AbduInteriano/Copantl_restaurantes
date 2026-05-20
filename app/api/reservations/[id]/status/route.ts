@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendEmailWithTemplate } from "@/lib/email";
+import { validateMesaForArea } from "@/lib/mesa-server";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 
@@ -28,13 +29,11 @@ export async function PATCH(
 
   if (status === "confirmada") {
     const mesa = payload.mesa != null ? Number(payload.mesa) : NaN;
-    if (!Number.isFinite(mesa) || mesa < 1 || mesa > 10) {
-      return NextResponse.json(
-        { error: "Debe asignar una mesa del 1 al 10 para confirmar." },
-        { status: 400 },
-      );
+    const check = await validateMesaForArea(mesa, reservationData.area);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: 400 });
     }
-    updates.mesa = mesa;
+    updates.mesa = check.mesa;
   } else if (status === "cancelada" || status === "pendiente") {
     updates.mesa = null;
   }
@@ -47,7 +46,7 @@ export async function PATCH(
   if (error) {
     if (error.code === "23505") {
       return NextResponse.json(
-        { error: "Esa mesa ya esta ocupada en esa fecha y hora." },
+        { error: "Esa mesa ya esta ocupada en esa fecha y hora para este restaurante." },
         { status: 409 },
       );
     }

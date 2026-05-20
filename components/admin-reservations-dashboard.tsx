@@ -5,15 +5,19 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Database } from "@/lib/supabase/types";
 import {
+  getTableCountMap,
+  type RestaurantProfile,
+} from "@/lib/restaurant-profiles";
+import {
   MAX_GUESTS_PER_RESERVATION,
-  MESA_COUNT,
   availableMesaList,
   formatReservationArea,
   formatReservationAreaLong,
+  getTableCountForArea,
   hasReservationSlotConflict,
   normalizeTimeKey,
 } from "@/lib/reservations";
-import { RESTAURANTS, parseReservationRestaurant } from "@/lib/restaurants";
+import { RESTAURANTS, parseReservationRestaurant, type RestaurantKey } from "@/lib/restaurants";
 import { formatReservationTimeSlotLabel, RESERVATION_TIME_SLOT_VALUES, snapReservationTimeToHalfHour } from "@/lib/reservation-time-slots";
 
 type Reservation = Database["public"]["Tables"]["reservations"]["Row"];
@@ -21,6 +25,7 @@ type Reservation = Database["public"]["Tables"]["reservations"]["Row"];
 type Props = {
   reservations: Reservation[];
   eventTitles?: Record<string, string>;
+  restaurantProfiles: RestaurantProfile[];
 };
 
 const MONTHS_ES = [
@@ -33,12 +38,18 @@ function padDate(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-function mesaColor(mesa: number): string {
-  const hue = 8 + ((mesa - 1) * 36) % 360;
+function mesaColor(mesa: number, tableCount: number): string {
+  const span = Math.max(1, tableCount);
+  const hue = 8 + Math.floor(((mesa - 1) * 360) / span) % 360;
   return `hsl(${hue} 62% 42%)`;
 }
 
-export function AdminReservationsDashboard({ reservations, eventTitles = {} }: Props) {
+export function AdminReservationsDashboard({
+  reservations,
+  eventTitles = {},
+  restaurantProfiles,
+}: Props) {
+  const tableCountMap = useMemo(() => getTableCountMap(restaurantProfiles), [restaurantProfiles]);
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -58,7 +69,9 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
   const [includeCancelledInList, setIncludeCancelledInList] = useState(false);
   const [manualDate, setManualDate] = useState("");
   const [manualTime, setManualTime] = useState("");
+  const [manualArea, setManualArea] = useState<RestaurantKey>("cbari");
   const [manualStatus, setManualStatus] = useState<"confirmada" | "pendiente">("confirmada");
+  const [calendarRestaurant, setCalendarRestaurant] = useState<RestaurantKey>("la_posada");
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     reservation_date: "",
@@ -71,10 +84,13 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
     [editId, reservations],
   );
 
+  const calendarTableCount = tableCountMap[calendarRestaurant] ?? 10;
+
   const manualFreeMesas = useMemo(() => {
     if (manualStatus !== "confirmada" || !manualDate || !manualTime) return [];
-    return availableMesaList(reservations, manualDate, manualTime);
-  }, [reservations, manualDate, manualTime, manualStatus]);
+    const count = getTableCountForArea(manualArea, tableCountMap);
+    return availableMesaList(reservations, manualArea, count, manualDate, manualTime);
+  }, [reservations, manualDate, manualTime, manualStatus, manualArea, tableCountMap]);
 
   const confirmed = useMemo(
     () => reservations.filter((r) => r.status === "confirmada"),
@@ -115,6 +131,7 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
   const confirmedByDate = useMemo(() => {
     const map = new Map<string, Reservation[]>();
     for (const r of confirmed) {
+      if (parseReservationRestaurant(r.area) !== calendarRestaurant) continue;
       const k = r.reservation_date;
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
@@ -123,7 +140,7 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
       list.sort((a, b) => normalizeTimeKey(a.reservation_time).localeCompare(normalizeTimeKey(b.reservation_time)));
     }
     return map;
-  }, [confirmed]);
+  }, [confirmed, calendarRestaurant]);
 
   const y = calendarMonth.getFullYear();
   const m = calendarMonth.getMonth();
@@ -143,8 +160,12 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
 
   const selectedDayReservations = useMemo(() => {
     if (!selectedDate) return [];
-    return confirmed.filter((r) => r.reservation_date === selectedDate);
-  }, [confirmed, selectedDate]);
+    return confirmed.filter(
+      (r) =>
+        r.reservation_date === selectedDate &&
+        parseReservationRestaurant(r.area) === calendarRestaurant,
+    );
+  }, [confirmed, selectedDate, calendarRestaurant]);
 
   async function changeStatus(id: string, status: "confirmada" | "cancelada", mesa?: number) {
     setLoadingId(id);
@@ -300,10 +321,15 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
               <input name="email" type="email" required className="rounded-md border bg-transparent p-3" placeholder="Correo" />
               <input name="phone" required className="rounded-md border bg-transparent p-3" placeholder="Telefono" />
               <input name="guests" type="number" min={1} max={MAX_GUESTS_PER_RESERVATION} defaultValue={2} required className="rounded-md border bg-transparent p-3" placeholder="Personas" />
-              <select name="area" className="rounded-md border bg-transparent p-3" defaultValue="cbari">
+              <select
+                name="area"
+                className="rounded-md border bg-transparent p-3"
+                value={manualArea}
+                onChange={(e) => setManualArea(parseReservationRestaurant(e.target.value))}
+              >
                 {RESTAURANTS.map((r) => (
                   <option key={r.key} value={r.key}>
-                    Restaurante: {r.shortLabel}
+                    Restaurante: {r.shortLabel} ({tableCountMap[r.key]} mesas)
                   </option>
                 ))}
               </select>
@@ -374,9 +400,26 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
         <h2 className="mb-4 text-lg font-semibold tracking-wide text-[var(--admin-foreground)]">
           Calendario — reservas confirmadas
         </h2>
-        <p className="mb-4 text-sm text-[var(--foreground-muted)]">
-          10 mesas disponibles; cada reserva admite de 1 a {MAX_GUESTS_PER_RESERVATION} personas. Las celdas muestran cuantas reservas confirmadas hay ese dia.
+        <p className="mb-3 text-sm text-[var(--foreground-muted)]">
+          Mesas por restaurante (configurables en Horario de reservas). Cada reserva admite de 1 a{" "}
+          {MAX_GUESTS_PER_RESERVATION} personas. El calendario muestra confirmadas del restaurante seleccionado.
         </p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {RESTAURANTS.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => setCalendarRestaurant(r.key)}
+              className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                calendarRestaurant === r.key
+                  ? "border-[var(--admin-accent)] bg-blue-50 text-[var(--admin-accent)]"
+                  : "border-[var(--admin-border)] bg-white text-[var(--admin-foreground)] hover:bg-slate-50"
+              }`}
+            >
+              {r.shortLabel} — {tableCountMap[r.key]} mesas
+            </button>
+          ))}
+        </div>
         <div className="mb-4 flex items-center justify-between gap-2">
           <button
             type="button"
@@ -425,9 +468,9 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
                     {list.slice(0, 6).map((r) => (
                       <span
                         key={r.id}
-                        title={`Mesa ${r.mesa} Â· ${normalizeTimeKey(r.reservation_time)}`}
+                        title={`Mesa ${r.mesa} · ${normalizeTimeKey(r.reservation_time)}`}
                         className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
+                        style={{ backgroundColor: mesaColor(r.mesa ?? 1, calendarTableCount) }}
                       />
                     ))}
                     {list.length > 6 && (
@@ -440,10 +483,12 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
           })}
         </div>
         <div className="mt-4 flex flex-wrap gap-3 text-xs">
-          <span className="text-[var(--foreground-muted)]">Mesas:</span>
-          {Array.from({ length: MESA_COUNT }, (_, i) => i + 1).map((n) => (
+          <span className="text-[var(--foreground-muted)]">
+            Mesas {RESTAURANTS.find((r) => r.key === calendarRestaurant)?.shortLabel}:
+          </span>
+          {Array.from({ length: calendarTableCount }, (_, i) => i + 1).map((n) => (
             <span key={n} className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: mesaColor(n) }} />
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: mesaColor(n, calendarTableCount) }} />
               {n}
             </span>
           ))}
@@ -453,7 +498,7 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
       {selectedDate && (
         <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm sm:p-6">
           <h3 className="mb-3 text-lg font-semibold text-[var(--admin-foreground)]">
-            Confirmadas el {selectedDate}
+            Confirmadas el {selectedDate} — {RESTAURANTS.find((r) => r.key === calendarRestaurant)?.shortLabel}
           </h3>
           {selectedDayReservations.length === 0 ? (
             <p className="text-sm text-[var(--foreground-muted)]">Sin reservas confirmadas este dia.</p>
@@ -469,7 +514,12 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
                       <p className="sm:col-span-2">
                         <span
                           className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
-                          style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
+                          style={{
+                            backgroundColor: mesaColor(
+                              r.mesa ?? 1,
+                              getTableCountForArea(r.area, tableCountMap),
+                            ),
+                          }}
                         />
                         <strong className="text-[var(--admin-foreground)]">{r.full_name}</strong>
                       </p>
@@ -615,15 +665,19 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
                   onChange={(e) => setEditForm((f) => ({ ...f, mesa: e.target.value }))}
                 >
                   {(() => {
+                    const editArea = editingReservation?.area;
+                    const editCount = getTableCountForArea(editArea, tableCountMap);
                     const free = availableMesaList(
                       reservations,
+                      editArea,
+                      editCount,
                       editForm.reservation_date,
                       editForm.reservation_time,
                       editId ?? undefined,
                     );
                     const cur = editForm.mesa ? Number(editForm.mesa) : null;
                     const opts = new Set(free);
-                    if (cur != null && cur >= 1 && cur <= MESA_COUNT) opts.add(cur);
+                    if (cur != null && cur >= 1 && cur <= editCount) opts.add(cur);
                     return [...opts].sort((a, b) => a - b).map((n) => (
                       <option key={n} value={n}>
                         Mesa {n}
@@ -680,6 +734,7 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
               key={r.id}
               r={r}
               reservations={reservations}
+              tableCount={getTableCountForArea(r.area, tableCountMap)}
               eventTitles={eventTitles}
               loadingId={loadingId}
               onConfirm={(mesa) => changeStatus(r.id, "confirmada", mesa)}
@@ -823,6 +878,7 @@ export function AdminReservationsDashboard({ reservations, eventTitles = {} }: P
 function PendingCard({
   r,
   reservations,
+  tableCount,
   eventTitles,
   loadingId,
   onConfirm,
@@ -831,6 +887,7 @@ function PendingCard({
 }: {
   r: Reservation;
   reservations: Reservation[];
+  tableCount: number;
   eventTitles: Record<string, string>;
   loadingId: string | null;
   onConfirm: (mesa: number) => void;
@@ -839,8 +896,16 @@ function PendingCard({
 }) {
   const [mesa, setMesa] = useState<string>("");
   const free = useMemo(
-    () => availableMesaList(reservations, r.reservation_date, r.reservation_time, r.id),
-    [reservations, r.reservation_date, r.reservation_time, r.id],
+    () =>
+      availableMesaList(
+        reservations,
+        r.area,
+        tableCount,
+        r.reservation_date,
+        r.reservation_time,
+        r.id,
+      ),
+    [reservations, r.area, tableCount, r.reservation_date, r.reservation_time, r.id],
   );
 
   return (
@@ -850,7 +915,7 @@ function PendingCard({
         <p><strong>Correo:</strong> {r.email}</p>
         <p><strong>Telefono:</strong> {r.phone}</p>
         <p><strong>Personas:</strong> {r.guests}</p>
-        <p><strong>Restaurante:</strong> {formatReservationAreaLong(r.area)}</p>
+        <p><strong>Restaurante:</strong> {formatReservationAreaLong(r.area)} ({tableCount} mesas)</p>
         {r.event_id && eventTitles[r.event_id] ? <p><strong>Evento:</strong> {eventTitles[r.event_id]}</p> : null}
         <p><strong>Fecha:</strong> {r.reservation_date}</p>
         <p><strong>Hora:</strong> {normalizeTimeKey(r.reservation_time)}</p>

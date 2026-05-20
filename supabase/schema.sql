@@ -145,7 +145,7 @@ create table if not exists public.reservations (
   notes text,
   status reservation_status not null default 'pendiente',
   created_at timestamptz not null default now(),
-  constraint reservations_mesa_range check (mesa is null or (mesa >= 1 and mesa <= 10))
+  constraint reservations_mesa_range check (mesa is null or mesa >= 1)
 );
 
 alter table public.gallery_items alter column title drop not null;
@@ -159,7 +159,7 @@ alter table public.reservations add constraint reservations_guests_check check (
 
 do $$
 begin
-  alter table public.reservations add constraint reservations_mesa_range check (mesa is null or (mesa >= 1 and mesa <= 10));
+  alter table public.reservations add constraint reservations_mesa_range check (mesa is null or mesa >= 1);
 exception
   when duplicate_object then null;
 end $$;
@@ -171,9 +171,10 @@ exception
   when duplicate_object then null;
 end $$;
 
+drop index if exists public.reservations_confirmada_mesa_slot_uidx;
 create unique index if not exists reservations_confirmada_mesa_slot_uidx
-on public.reservations (reservation_date, reservation_time, mesa)
-where status = 'confirmada' and mesa is not null;
+  on public.reservations (reservation_date, reservation_time, area, mesa)
+  where status = 'confirmada' and mesa is not null;
 
 -- Perfiles de panel: roles de acceso al admin
 do $$ begin
@@ -484,15 +485,29 @@ create table if not exists public.restaurant_profiles (
   reservation_start_time time not null default '13:00',
   reservation_end_time time not null default '22:00',
   display_hours_text text not null default '',
+  table_count int not null default 10 check (table_count >= 1 and table_count <= 99),
   updated_at timestamptz not null default now()
 );
 
-insert into public.restaurant_profiles (restaurant, reservation_start_time, reservation_end_time, display_hours_text)
+alter table public.restaurant_profiles add column if not exists table_count int not null default 10 check (table_count >= 1 and table_count <= 99);
+
+update public.restaurant_profiles set table_count = 20 where restaurant = 'la_posada' and table_count = 10;
+update public.restaurant_profiles set table_count = 10 where restaurant in ('cbari', 'la_churrasqueria');
+
+insert into public.restaurant_profiles (restaurant, reservation_start_time, reservation_end_time, display_hours_text, table_count)
 values
-  ('cbari', '13:00', '22:00', ''),
-  ('la_posada', '13:00', '22:00', ''),
-  ('la_churrasqueria', '13:00', '22:00', '')
+  ('cbari', '13:00', '22:00', '', 10),
+  ('la_posada', '13:00', '22:00', '', 20),
+  ('la_churrasqueria', '13:00', '22:00', '', 10)
 on conflict (restaurant) do nothing;
+
+alter table public.reservations drop constraint if exists reservations_mesa_range;
+alter table public.reservations add constraint reservations_mesa_range check (mesa is null or mesa >= 1);
+
+drop index if exists public.reservations_confirmada_mesa_slot_uidx;
+create unique index if not exists reservations_confirmada_mesa_slot_uidx
+  on public.reservations (reservation_date, reservation_time, area, mesa)
+  where status = 'confirmada' and mesa is not null;
 
 alter table public.restaurant_profiles enable row level security;
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { canManageReservations, getSessionRole } from "@/lib/admin-auth";
+import { validateMesaForArea } from "@/lib/mesa-server";
 import { parseReservationRestaurant } from "@/lib/restaurants";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
 import { createClient } from "@/lib/supabase/server";
@@ -26,12 +27,11 @@ export async function POST(req: Request) {
   let mesa: number | null = payload.mesa != null && payload.mesa !== "" ? Number(payload.mesa) : null;
 
   if (status === "confirmada") {
-    if (mesa == null || Number.isNaN(mesa) || mesa < 1 || mesa > 10) {
-      return NextResponse.json(
-        { error: "Para confirmar debe elegir una mesa del 1 al 10." },
-        { status: 400 },
-      );
+    const check = await validateMesaForArea(mesa, area);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: 400 });
     }
+    mesa = check.mesa;
   } else {
     mesa = null;
   }
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   if (error) {
     if (error.code === "23505") {
       return NextResponse.json(
-        { error: "Esa mesa ya esta ocupada en esa fecha y hora." },
+        { error: "Esa mesa ya esta ocupada en esa fecha y hora para este restaurante." },
         { status: 409 },
       );
     }

@@ -13,7 +13,7 @@ export default async function HorariosAdminPage() {
       <div>
         <h1 className="section-title text-4xl">Horario de reservaciones</h1>
         <p className="mt-2 text-sm text-[var(--admin-muted)]">
-          Horarios en que los clientes pueden reservar mesa en cada restaurante (sin evento seleccionado).
+          Horarios y numero de mesas disponibles para reservar en cada restaurante (sin evento seleccionado).
         </p>
       </div>
       <RestaurantReservationHoursAdmin profiles={profiles} />

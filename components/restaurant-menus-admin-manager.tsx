@@ -57,6 +57,7 @@ export function RestaurantMenusAdminManager({ items, profiles }: Props) {
           display_hours_text: hoursText.trim(),
           reservation_start_time: profile?.reservation_start_time ?? "13:00",
           reservation_end_time: profile?.reservation_end_time ?? "22:00",
+          table_count: profile?.table_count ?? 10,
         } as never,
         { onConflict: "restaurant" },
       );

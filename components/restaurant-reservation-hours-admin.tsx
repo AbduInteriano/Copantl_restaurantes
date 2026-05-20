@@ -20,6 +20,7 @@ export function RestaurantReservationHoursAdmin({ profiles }: Props) {
         {
           reservation_start_time: p.reservation_start_time,
           reservation_end_time: p.reservation_end_time,
+          table_count: String(p.table_count),
         },
       ]),
     ),
@@ -37,6 +38,11 @@ export function RestaurantReservationHoursAdmin({ profiles }: Props) {
       setStatus("La hora de fin debe ser posterior a la de inicio.");
       return;
     }
+    const tableCount = Number(draft.table_count);
+    if (!Number.isFinite(tableCount) || tableCount < 1 || tableCount > 99) {
+      setStatus("El numero de mesas debe estar entre 1 y 99.");
+      return;
+    }
 
     setLoading(true);
     setStatus("");
@@ -49,6 +55,7 @@ export function RestaurantReservationHoursAdmin({ profiles }: Props) {
           reservation_start_time: draft.reservation_start_time,
           reservation_end_time: draft.reservation_end_time,
           display_hours_text: existing?.display_hours_text ?? "",
+          table_count: Math.floor(tableCount),
         } as never,
         { onConflict: "restaurant" },
       );
@@ -57,15 +64,15 @@ export function RestaurantReservationHoursAdmin({ profiles }: Props) {
       setStatus(error.message);
       return;
     }
-    setStatus("Horarios guardados.");
+    setStatus("Horarios y mesas guardados.");
     router.refresh();
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-[var(--admin-muted)]">
-        Define el rango de horas en que los clientes pueden reservar en cada restaurante cuando no eligen un evento.
-        Intervalos de 30 minutos.
+        Define el rango de horas en que los clientes pueden reservar en cada restaurante cuando no eligen un evento,
+        y cuantas mesas estan disponibles para asignar en el panel de reservas (intervalos de 30 minutos).
       </p>
 
       <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-1">
@@ -78,7 +85,10 @@ export function RestaurantReservationHoursAdmin({ profiles }: Props) {
               className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-sm"
             >
               <h2 className="text-lg font-semibold text-[var(--admin-foreground)]">{meta.shortLabel}</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <p className="mt-1 text-xs text-[var(--admin-muted)]">
+                Mesas configuradas actualmente: {profile.table_count}
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <label className="block text-sm text-[var(--admin-muted)]">
                   Hora inicio reservas
                   <input
@@ -103,6 +113,23 @@ export function RestaurantReservationHoursAdmin({ profiles }: Props) {
                       setDrafts((prev) => ({
                         ...prev,
                         [profile.restaurant]: { ...prev[profile.restaurant], reservation_end_time: e.target.value },
+                      }))
+                    }
+                    className="mt-1 w-full rounded-md border bg-transparent p-3"
+                    required
+                  />
+                </label>
+                <label className="block text-sm text-[var(--admin-muted)] sm:col-span-2 lg:col-span-1">
+                  Mesas disponibles para reservar
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={draft.table_count}
+                    onChange={(e) =>
+                      setDrafts((prev) => ({
+                        ...prev,
+                        [profile.restaurant]: { ...prev[profile.restaurant], table_count: e.target.value },
                       }))
                     }
                     className="mt-1 w-full rounded-md border bg-transparent p-3"
