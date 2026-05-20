@@ -19,7 +19,7 @@ const STORAGE_KEY = "copantl-admin-sidebar-collapsed";
 
 const navItems = [
   { href: "/admin", label: "Reservas", icon: LayoutDashboard, adminOnly: false },
-  { href: "/admin/menu", label: "Menus", icon: UtensilsCrossed, adminOnly: true },
+  { href: "/admin/menu", label: "Menús", icon: UtensilsCrossed, adminOnly: true },
   { href: "/admin/eventos", label: "Eventos", icon: CalendarHeart, adminOnly: true },
   { href: "/admin/horarios", label: "Horario reservas", icon: Clock, adminOnly: true },
   { href: "/admin/galeria", label: "Galeria", icon: Images, adminOnly: true },
@@ -65,8 +65,8 @@ export function AdminShell({ children, showAdminNav, roleLabel }: Props) {
             type="button"
             onClick={toggleSidebar}
             className="absolute -right-3 top-5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--admin-border)] bg-white text-[var(--admin-muted)] shadow-sm hover:bg-slate-50"
-            aria-label="Ocultar menu"
-            title="Ocultar menu"
+            aria-label="Ocultar menú"
+            title="Ocultar menú"
           >
             <ChevronLeft size={16} />
           </button>
@@ -109,8 +109,8 @@ export function AdminShell({ children, showAdminNav, roleLabel }: Props) {
           type="button"
           onClick={toggleSidebar}
           className="fixed left-3 top-6 z-30 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--admin-border)] bg-[var(--admin-sidebar)] text-[var(--admin-muted)] shadow-md hover:bg-white md:left-4 md:top-8"
-          aria-label="Mostrar menu"
-          title="Mostrar menu"
+          aria-label="Mostrar menú"
+          title="Mostrar menú"
         >
           <ChevronRight size={20} />
         </button>

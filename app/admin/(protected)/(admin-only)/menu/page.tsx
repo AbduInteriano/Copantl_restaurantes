@@ -24,9 +24,9 @@ export default async function MenusAdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="section-title text-4xl">Menus por restaurante</h1>
+        <h1 className="section-title text-4xl">Menús por restaurante</h1>
         <p className="mt-2 text-sm text-[var(--admin-muted)]">
-          Sube las paginas del menu en imagen para La Churrasqueria, La Posada y Cbari.
+          Sube las paginas del menú en imagen para La Churrasqueria, La Posada y Cbari.
         </p>
       </div>
       <RestaurantMenusAdminManager items={items} profiles={restaurantProfiles} />

@@ -72,7 +72,7 @@ export function RestaurantMenusAdminManager({ items, profiles }: Props) {
   async function onUpload(e: React.FormEvent) {
     e.preventDefault();
     if (files.length === 0) {
-      setStatus("Selecciona una o mas imagenes del menu.");
+      setStatus("Selecciona una o mas imagenes del menú.");
       return;
     }
 
@@ -147,7 +147,7 @@ export function RestaurantMenusAdminManager({ items, profiles }: Props) {
           Sube una o varias imagenes (PNG, JPG). Se mostraran en orden en el sitio publico.
         </p>
         <label className="block text-sm text-[var(--admin-muted)]">
-          Horario del restaurante (texto en la tarjeta del menu)
+          Horario del restaurante (texto en la tarjeta del menú)
           <textarea
             value={hoursText}
             onChange={(e) => setHoursText(e.target.value)}
@@ -176,7 +176,7 @@ export function RestaurantMenusAdminManager({ items, profiles }: Props) {
           disabled={loading || files.length === 0}
           className="rounded-md bg-[var(--admin-accent)] px-4 py-3 font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-60"
         >
-          {loading ? "Subiendo..." : "Subir imagenes del menu"}
+          {loading ? "Subiendo..." : "Subir imagenes del menú"}
         </button>
         {status ? <p className="text-sm text-[var(--admin-muted)]">{status}</p> : null}
       </form>
@@ -187,7 +187,7 @@ export function RestaurantMenusAdminManager({ items, profiles }: Props) {
             <span className="absolute left-3 top-3 z-10 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
               #{index + 1}
             </span>
-            <img src={item.image_url} alt={`Menu ${index + 1}`} className="aspect-[3/4] w-full rounded-lg object-cover" />
+            <img src={item.image_url} alt={`Menú ${index + 1}`} className="aspect-[3/4] w-full rounded-lg object-cover" />
             <button
               type="button"
               onClick={() => void deleteItem(item.id)}

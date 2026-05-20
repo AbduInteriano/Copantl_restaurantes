@@ -20,4 +20,4 @@ web/public/logos/restaurantes.png
 
 Reinicia el servidor de desarrollo y recarga la pagina de inicio.
 
-Los menus y el carrusel de fotos se gestionan en **Admin → Menus** y **Admin → Galeria**.
+Los menús y el carrusel de fotos se gestionan en **Admin → Menús** y **Admin → Galeria**.

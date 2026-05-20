@@ -129,9 +129,9 @@ export default async function Home() {
 
         <section className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16 lg:px-6">
           <FadeIn>
-            <h2 className="section-title text-4xl">Nuestros menus</h2>
+            <h2 className="section-title text-4xl">Nuestros menús</h2>
             <p className="mt-3 max-w-2xl text-[var(--foreground-muted)]">
-              Elige un restaurante para ver su menu completo.
+              Elige un restaurante para ver su menú completo.
             </p>
           </FadeIn>
           <RestaurantMenusDisplay items={menus} displayHoursByRestaurant={displayHoursByRestaurant} />

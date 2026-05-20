@@ -7,11 +7,11 @@ export const RESTAURANTS: {
   adminLabel: string;
   shortLabel: string;
 }[] = [
-  { key: "cbari", menuTitle: "Menu Cbari", adminLabel: "Cbari", shortLabel: "Cbari" },
-  { key: "la_posada", menuTitle: "Menu La Posada", adminLabel: "La Posada", shortLabel: "La Posada" },
+  { key: "cbari", menuTitle: "Menú Cbari", adminLabel: "Cbari", shortLabel: "Cbari" },
+  { key: "la_posada", menuTitle: "Menú La Posada", adminLabel: "La Posada", shortLabel: "La Posada" },
   {
     key: "la_churrasqueria",
-    menuTitle: "Menu La Churrasqueria",
+    menuTitle: "Menú La Churrasqueria",
     adminLabel: "La Churrasqueria",
     shortLabel: "La Churrasqueria",
   },

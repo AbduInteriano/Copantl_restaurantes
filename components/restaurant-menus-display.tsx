@@ -91,7 +91,7 @@ export function RestaurantMenusDisplay({ items, displayHoursByRestaurant = {} }:
                 ) : null}
                 {hasMenu ? (
                   <span className="mt-5 inline-flex items-center text-sm font-semibold text-[var(--accent-gold)]">
-                    Ver menu
+                    Ver menú
                     <ChevronRight size={16} className="ml-1 transition group-hover:translate-x-0.5" />
                   </span>
                 ) : null}
@@ -140,7 +140,7 @@ export function RestaurantMenusDisplay({ items, displayHoursByRestaurant = {} }:
 
               <div className="flex min-h-0 flex-1 flex-col bg-[var(--background-secondary)] p-3 sm:p-4">
                 {modalImages.length === 0 ? (
-                  <p className="py-16 text-center text-sm text-[var(--foreground-muted)]">Sin imagenes de menu.</p>
+                  <p className="py-16 text-center text-sm text-[var(--foreground-muted)]">Sin imágenes de menú.</p>
                 ) : (
                   <div className="flex min-h-0 flex-1 items-center gap-2 sm:gap-3">
                     <button
