@@ -8,6 +8,40 @@ import { DEFAULT_TABLE_COUNTS, isValidMesaForRestaurant } from "@/lib/restaurant
 
 export const MAX_GUESTS_PER_RESERVATION = 20;
 
+/** Zona horaria del hotel (Honduras) para decidir si una reserva ya pasó. */
+export const RESERVATION_BUSINESS_TZ = "America/Tegucigalpa";
+
+/** Fecha local del negocio en formato YYYY-MM-DD. */
+export function getBusinessTodayDateKey(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: RESERVATION_BUSINESS_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/** true si la fecha de la reserva es anterior a hoy (ya terminó ese día). */
+export function isReservationDatePast(
+  reservationDate: string,
+  todayKey = getBusinessTodayDateKey(),
+): boolean {
+  const key = reservationDate.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return false;
+  return key < todayKey;
+}
+
+/** Reservas que deben verse en panel, calendario e impresión (hoy o futuro). */
+export function isReservationOperational(r: { reservation_date: string }): boolean {
+  return !isReservationDatePast(r.reservation_date);
+}
+
+export function filterOperationalReservations<T extends { reservation_date: string }>(
+  reservations: T[],
+): T[] {
+  return reservations.filter(isReservationOperational);
+}
+
 /** @deprecated Usar table_count por restaurante desde restaurant_profiles */
 export const MESA_COUNT = 10;
 

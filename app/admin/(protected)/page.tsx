@@ -8,6 +8,7 @@ import {
 } from "@/lib/admin-auth";
 import { adminPath } from "@/lib/admin-path";
 import { mapRowsToRestaurantProfiles } from "@/lib/restaurant-profiles";
+import { getBusinessTodayDateKey } from "@/lib/reservations";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminReservationsPage() {
@@ -25,10 +26,12 @@ export default async function AdminReservationsPage() {
   }
 
   const supabase = createClient();
+  const today = getBusinessTodayDateKey();
   const [{ data: reservations }, { data: events }, { data: profileRows }] = await Promise.all([
     supabase
       .from("reservations")
       .select("*, event_banners(title)")
+      .gte("reservation_date", today)
       .order("reservation_date", { ascending: true })
       .order("reservation_time", { ascending: true }),
     supabase.from("event_banners").select("id, title").eq("is_active", true),

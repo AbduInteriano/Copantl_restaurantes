@@ -12,6 +12,7 @@ import {
 import {
   MAX_GUESTS_PER_RESERVATION,
   availableMesaList,
+  filterOperationalReservations,
   formatReservationArea,
   formatReservationAreaLong,
   getTableCountForArea,
@@ -51,6 +52,10 @@ export function AdminReservationsDashboard({
   restaurantProfiles,
 }: Props) {
   const tableCountMap = useMemo(() => getTableCountMap(restaurantProfiles), [restaurantProfiles]);
+  const operationalReservations = useMemo(
+    () => filterOperationalReservations(reservations),
+    [reservations],
+  );
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -81,8 +86,8 @@ export function AdminReservationsDashboard({
   });
 
   const editingReservation = useMemo(
-    () => (editId ? reservations.find((r) => r.id === editId) ?? null : null),
-    [editId, reservations],
+    () => (editId ? operationalReservations.find((r) => r.id === editId) ?? null : null),
+    [editId, operationalReservations],
   );
 
   const calendarTableCount = tableCountMap[calendarRestaurant] ?? 10;
@@ -90,22 +95,22 @@ export function AdminReservationsDashboard({
   const manualFreeMesas = useMemo(() => {
     if (manualStatus !== "confirmada" || !manualDate || !manualTime) return [];
     const count = getTableCountForArea(manualArea, tableCountMap);
-    return availableMesaList(reservations, manualArea, count, manualDate, manualTime);
-  }, [reservations, manualDate, manualTime, manualStatus, manualArea, tableCountMap]);
+    return availableMesaList(operationalReservations, manualArea, count, manualDate, manualTime);
+  }, [operationalReservations, manualDate, manualTime, manualStatus, manualArea, tableCountMap]);
 
   const confirmed = useMemo(
-    () => reservations.filter((r) => r.status === "confirmada"),
-    [reservations],
+    () => operationalReservations.filter((r) => r.status === "confirmada"),
+    [operationalReservations],
   );
   const pending = useMemo(
-    () => reservations.filter((r) => r.status === "pendiente"),
-    [reservations],
+    () => operationalReservations.filter((r) => r.status === "pendiente"),
+    [operationalReservations],
   );
 
   const activeReservations = useMemo(() => {
     const act = includeCancelledInList
-      ? reservations
-      : reservations.filter((r) => r.status !== "cancelada");
+      ? operationalReservations
+      : operationalReservations.filter((r) => r.status !== "cancelada");
     return [...act].sort((a, b) => {
       const st = (x: Reservation) => (x.status === "cancelada" ? 1 : 0);
       const sc = st(a) - st(b);
@@ -114,7 +119,7 @@ export function AdminReservationsDashboard({
       if (d !== 0) return d;
       return normalizeTimeKey(a.reservation_time).localeCompare(normalizeTimeKey(b.reservation_time));
     });
-  }, [reservations, includeCancelledInList]);
+  }, [operationalReservations, includeCancelledInList]);
 
   const filteredActive = useMemo(() => {
     const q = activeSearch.trim().toLowerCase();
@@ -125,8 +130,8 @@ export function AdminReservationsDashboard({
   }, [activeReservations, activeSearch]);
 
   const activeOnlyCount = useMemo(
-    () => reservations.filter((r) => r.status !== "cancelada").length,
-    [reservations],
+    () => operationalReservations.filter((r) => r.status !== "cancelada").length,
+    [operationalReservations],
   );
 
   const confirmedByDate = useMemo(() => {
@@ -291,7 +296,7 @@ export function AdminReservationsDashboard({
   async function saveEdit(id: string) {
     if (
       hasReservationSlotConflict(
-        reservations,
+        operationalReservations,
         editForm.reservation_date,
         editForm.reservation_time,
         id,
@@ -353,7 +358,7 @@ export function AdminReservationsDashboard({
         >
           Nueva reserva +
         </button>
-        <ReservationsPrintDialog reservations={reservations} eventTitles={eventTitles} />
+        <ReservationsPrintDialog reservations={operationalReservations} eventTitles={eventTitles} />
       </div>
       <div className="space-y-3">
         {manualOpen && (
@@ -444,7 +449,7 @@ export function AdminReservationsDashboard({
         </h2>
         <p className="mb-3 text-sm text-[var(--foreground-muted)]">
           Mesas por restaurante (configurables en Horario de reservas). Cada reserva admite de 1 a{" "}
-          {MAX_GUESTS_PER_RESERVATION} personas. El calendario muestra confirmadas del restaurante seleccionado.
+          {MAX_GUESTS_PER_RESERVATION} personas. Solo hoy y fechas futuras; las pasadas quedan en Reportería.
         </p>
         <div className="mb-4 flex flex-wrap gap-2">
           {RESTAURANTS.map((r) => (
@@ -710,7 +715,7 @@ export function AdminReservationsDashboard({
                     const editArea = editingReservation?.area;
                     const editCount = getTableCountForArea(editArea, tableCountMap);
                     const free = availableMesaList(
-                      reservations,
+                      operationalReservations,
                       editArea,
                       editCount,
                       editForm.reservation_date,
@@ -750,7 +755,7 @@ export function AdminReservationsDashboard({
                 className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-4 py-2 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
                 disabled={loadingId === editId}
                 onClick={() => {
-                  const r = reservations.find((x) => x.id === editId);
+                  const r = operationalReservations.find((x) => x.id === editId);
                   deleteReservation(editId, r?.full_name);
                 }}
               >
@@ -775,7 +780,7 @@ export function AdminReservationsDashboard({
             <PendingCard
               key={r.id}
               r={r}
-              reservations={reservations}
+              reservations={operationalReservations}
               tableCount={getTableCountForArea(r.area, tableCountMap)}
               eventTitles={eventTitles}
               loadingId={loadingId}
@@ -803,7 +808,7 @@ export function AdminReservationsDashboard({
               )}
             </h2>
             <p className="mt-0.5 text-sm text-[var(--foreground-muted)]">
-              Pendientes y confirmadas en orden por fecha. Tabla compacta y busqueda.
+              Pendientes y confirmadas de hoy en adelante. Las fechas pasadas solo en Reportería.
             </p>
           </div>
           {activeListOpen ? (

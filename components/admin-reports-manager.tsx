@@ -104,7 +104,7 @@ export function AdminReportsManager() {
             <div>
               <h2 className="text-lg font-semibold text-[var(--admin-foreground)]">Reservaciones por periodo</h2>
               <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                Detalle completo: contacto, restaurante, evento, personas, fecha, hora, estado y mas.
+                Historial completo (incluye fechas pasadas): contacto, restaurante, evento, personas, fecha, hora, estado y mas.
               </p>
             </div>
 

@@ -4,6 +4,7 @@ import { Bell, CalendarDays, Users, X } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getBusinessTodayDateKey } from "@/lib/reservations";
 import { formatReservationTimeSlotLabel } from "@/lib/reservation-time-slots";
 import { createClient } from "@/lib/supabase/client";
 
@@ -88,6 +89,7 @@ export function AdminNewReservationNotify() {
         .from("reservations")
         .select("id, full_name, guests, reservation_date, reservation_time, created_at")
         .eq("status", "pendiente")
+        .gte("reservation_date", getBusinessTodayDateKey())
         .order("created_at", { ascending: false })
         .limit(50);
 

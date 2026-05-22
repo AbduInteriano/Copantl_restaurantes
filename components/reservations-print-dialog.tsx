@@ -6,7 +6,11 @@ import {
   buildReservationsPrintDocument,
   type PrintableReservation,
 } from "@/lib/reservation-print-html";
-import { formatReservationArea, normalizeTimeKey } from "@/lib/reservations";
+import {
+  filterOperationalReservations,
+  formatReservationArea,
+  normalizeTimeKey,
+} from "@/lib/reservations";
 import type { Database } from "@/lib/supabase/types";
 
 type Reservation = Database["public"]["Tables"]["reservations"]["Row"];
@@ -118,7 +122,7 @@ export function ReservationsPrintDialog({ reservations, eventTitles }: Props) {
 
   const confirmed = useMemo(
     () =>
-      [...reservations]
+      [...filterOperationalReservations(reservations)]
         .filter((r) => r.status === "confirmada")
         .map(toPrintable)
         .sort((a, b) => {
