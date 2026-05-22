@@ -13,6 +13,10 @@ export type ReservationEmailTemplateParams = {
   status: string;
 };
 
+const WHATSAPP_URL = "https://wa.me/50431410888";
+const WAIT_TIME_NOTICE =
+  "Tu mesa estara disponible hasta 20 minutos despues de la hora de tu reservacion.";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -22,107 +26,160 @@ function escapeHtml(value: string): string {
 }
 
 function row(label: string, value: string): string {
-  return `<tr><td style="padding:6px 12px 6px 0;color:#555;font-weight:600;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:6px 0;">${escapeHtml(value)}</td></tr>`;
+  return `<tr><td style="padding:8px 14px 8px 0;color:#4b5563;font-weight:600;vertical-align:top;width:38%;">${escapeHtml(label)}</td><td style="padding:8px 0;color:#111827;">${escapeHtml(value)}</td></tr>`;
 }
 
+const emailShell = (body: string) => `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',system-ui,sans-serif;background:#f3f4f6;color:#111827;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+    <tr>
+      <td align="center" style="padding:28px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;" role="presentation">
+          ${body}
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+const confirmationFooterHtml = `
+<tr>
+  <td style="padding:20px 28px 28px;background:#f8fafc;border-top:1px solid #e5e7eb;">
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#374151;">
+      ${escapeHtml(WAIT_TIME_NOTICE)}
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;font-weight:600;color:#1e3a5f;">Gracias!</p>
+    <p style="margin:0;font-size:14px;line-height:1.5;">
+      <a href="${WHATSAPP_URL}" style="color:#1e3a5f;font-weight:600;text-decoration:underline;">Escribenos por WhatsApp</a>
+    </p>
+  </td>
+</tr>`;
+
+const confirmationFooterText = [
+  "",
+  WAIT_TIME_NOTICE,
+  "",
+  "Gracias!",
+  "",
+  `WhatsApp: ${WHATSAPP_URL}`,
+].join("\n");
+
+/** Correo al confirmar reserva (panel admin). Edita aqui el diseno y textos. */
 export function buildReservationConfirmationEmail(p: ReservationEmailTemplateParams): {
   subject: string;
   html: string;
   text: string;
 } {
-  const subject = "Reservacion confirmada — Copantl Reservaciones";
+  const subject = "Gracias por reservar — Copantl Hotel & Convention Center";
+
   const text = [
     `Hola ${p.full_name},`,
     "",
-    p.message,
+    "Gracias por Reservar en Copantl Hotel & Convention Center",
+    "",
+    "Tu reservacion ha sido confirmada. Estos son los detalles:",
     "",
     `Fecha: ${p.reservation_date}`,
     `Hora: ${p.reservation_time}`,
     `Restaurante: ${p.restaurant}`,
     `Mesa: ${p.mesa}`,
     `Personas: ${p.guests}`,
+    p.phone ? `Telefono: ${p.phone}` : "",
     p.notes ? `Notas: ${p.notes}` : "",
-    "",
-    "Te esperamos en Copantl Reservaciones.",
+    confirmationFooterText,
   ]
     .filter(Boolean)
     .join("\n");
 
-  const html = `
-<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="utf-8" /></head>
-<body style="margin:0;font-family:Segoe UI,system-ui,sans-serif;background:#f4f4f5;color:#111;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border:1px solid #e4e4e7;border-radius:8px;">
-    <tr><td style="padding:24px 24px 8px;border-bottom:3px solid #1e3a5f;">
-      <h1 style="margin:0;font-size:20px;color:#1e3a5f;">Reservacion confirmada</h1>
-      <p style="margin:8px 0 0;font-size:14px;color:#555;">Copantl Reservaciones</p>
-    </td></tr>
-    <tr><td style="padding:20px 24px;">
-      <p style="margin:0 0 16px;font-size:15px;">Hola <strong>${escapeHtml(p.full_name)}</strong>,</p>
-      <p style="margin:0 0 20px;font-size:14px;line-height:1.5;">${escapeHtml(p.message)}</p>
-      <table style="font-size:14px;line-height:1.4;">
-        ${row("Fecha", p.reservation_date)}
-        ${row("Hora", p.reservation_time)}
-        ${row("Restaurante", p.restaurant)}
-        ${row("Mesa", p.mesa)}
-        ${row("Personas", String(p.guests))}
-        ${row("Estado", p.status)}
-        ${p.notes ? row("Notas", p.notes) : ""}
-      </table>
-    </td></tr>
-    <tr><td style="padding:16px 24px;background:#f8fafc;font-size:12px;color:#64748b;border-top:1px solid #e4e4e7;">
-      Este correo fue enviado a ${escapeHtml(p.email)}. Si no realizaste esta reserva, contactanos.
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const body = `
+<tr>
+  <td style="padding:28px 28px 16px;background:#1e3a5f;text-align:center;">
+    <p style="margin:0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#cbd5e1;">Copantl Hotel &amp; Convention Center</p>
+    <h1 style="margin:12px 0 0;font-size:22px;line-height:1.35;font-weight:600;color:#ffffff;">
+      Gracias por Reservar en Copantl Hotel &amp; Convention Center
+    </h1>
+  </td>
+</tr>
+<tr>
+  <td style="padding:24px 28px 8px;">
+    <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#111827;">
+      Hola <strong>${escapeHtml(p.full_name)}</strong>,
+    </p>
+    <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#374151;">
+      Tu reservacion ha sido <strong>confirmada</strong>. Te compartimos los detalles:
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;" role="presentation">
+      <tr><td colspan="2" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#1e3a5f;">Detalles de tu reserva</td></tr>
+      <tr><td colspan="2" style="padding:4px 16px 12px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+          ${row("Fecha", p.reservation_date)}
+          ${row("Hora", p.reservation_time)}
+          ${row("Restaurante", p.restaurant)}
+          ${row("Mesa", p.mesa)}
+          ${row("Personas", String(p.guests))}
+          ${p.phone ? row("Telefono", p.phone) : ""}
+          ${p.notes ? row("Notas", p.notes) : ""}
+        </table>
+      </td></tr>
+    </table>
+  </td>
+</tr>
+${confirmationFooterHtml}`;
 
-  return { subject, html, text };
+  return { subject, html: emailShell(body), text };
 }
 
+/** Correo al recibir solicitud desde la web (pendiente de confirmar). */
 export function buildReservationReceivedEmail(p: ReservationEmailTemplateParams): {
   subject: string;
   html: string;
   text: string;
 } {
-  const subject = "Solicitud de reservacion recibida — Copantl";
+  const subject = "Solicitud de reservacion recibida — Copantl Hotel & Convention Center";
+
   const text = [
     `Hola ${p.full_name},`,
     "",
-    p.message,
+    "Gracias por contactar a Copantl Hotel & Convention Center.",
+    "",
+    "Recibimos tu solicitud de reservacion. Te enviaremos un correo cuando sea confirmada.",
     "",
     `Fecha solicitada: ${p.reservation_date}`,
     `Hora: ${p.reservation_time}`,
     `Restaurante: ${p.restaurant}`,
     `Personas: ${p.guests}`,
-    "",
-    "Te confirmaremos por correo cuando la reserva sea aprobada.",
+    confirmationFooterText,
   ].join("\n");
 
-  const html = `
-<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="utf-8" /></head>
-<body style="margin:0;font-family:Segoe UI,system-ui,sans-serif;background:#f4f4f5;color:#111;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border:1px solid #e4e4e7;border-radius:8px;">
-    <tr><td style="padding:24px 24px 8px;border-bottom:3px solid #1e3a5f;">
-      <h1 style="margin:0;font-size:20px;color:#1e3a5f;">Solicitud recibida</h1>
-    </td></tr>
-    <tr><td style="padding:20px 24px;">
-      <p style="margin:0 0 16px;font-size:15px;">Hola <strong>${escapeHtml(p.full_name)}</strong>,</p>
-      <p style="margin:0 0 20px;font-size:14px;line-height:1.5;">${escapeHtml(p.message)}</p>
-      <table style="font-size:14px;">
-        ${row("Fecha", p.reservation_date)}
-        ${row("Hora", p.reservation_time)}
-        ${row("Restaurante", p.restaurant)}
-        ${row("Personas", String(p.guests))}
-      </table>
-      <p style="margin:20px 0 0;font-size:13px;color:#555;">Te enviaremos otro correo cuando confirmemos tu mesa.</p>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const body = `
+<tr>
+  <td style="padding:28px 28px 16px;background:#1e3a5f;text-align:center;">
+    <h1 style="margin:0;font-size:20px;font-weight:600;color:#ffffff;">Solicitud de reservacion recibida</h1>
+    <p style="margin:10px 0 0;font-size:14px;color:#cbd5e1;">Copantl Hotel &amp; Convention Center</p>
+  </td>
+</tr>
+<tr>
+  <td style="padding:24px 28px 8px;">
+    <p style="margin:0 0 16px;font-size:16px;">Hola <strong>${escapeHtml(p.full_name)}</strong>,</p>
+    <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#374151;">
+      Recibimos tu solicitud. Te confirmaremos por correo en cuanto sea aprobada.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border:1px solid #e5e7eb;border-radius:8px;" role="presentation">
+      ${row("Fecha", p.reservation_date)}
+      ${row("Hora", p.reservation_time)}
+      ${row("Restaurante", p.restaurant)}
+      ${row("Personas", String(p.guests))}
+    </table>
+  </td>
+</tr>
+${confirmationFooterHtml}`;
 
-  return { subject, html, text };
+  return { subject, html: emailShell(body), text };
 }

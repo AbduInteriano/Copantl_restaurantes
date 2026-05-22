@@ -56,13 +56,9 @@ function toTemplateParams(
 export async function sendReservationConfirmationEmail(
   reservation: ReservationEmailPayload,
 ): Promise<EmailSendResult> {
-  const timeLabel = formatTimeLabel(reservation.reservation_time);
-  const restaurant = formatReservationRestaurant(reservation.area);
-  const mesaLabel = reservation.mesa != null ? String(reservation.mesa) : "—";
-
   const params = toTemplateParams(reservation, {
     status: "confirmada",
-    message: `Tu reservacion en Copantl ha sido confirmada. Mesa: ${mesaLabel}. Fecha: ${reservation.reservation_date}, hora: ${timeLabel}. Restaurante: ${restaurant}. Te esperamos.`,
+    message: "",
   });
 
   const { subject, html, text } = buildReservationConfirmationEmail(params);
