@@ -130,18 +130,40 @@ export function buildReservationsPrintDocument(
     .grid p { margin: 0; line-height: 1.35; }
     .lbl { color: #555; font-weight: 600; }
     .notes { grid-column: 1 / -1; }
+    .no-print.toolbar {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 12px;
+      margin-bottom: 16px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .no-print.toolbar button {
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #94a3b8;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .no-print.toolbar button:first-child {
+      background: #1e3a5f;
+      color: #fff;
+      border-color: #1e3a5f;
+    }
+    @media print {
+      .no-print { display: none !important; }
+    }
   </style>
 </head>
 <body>
+  <div class="no-print toolbar">
+    <button type="button" onclick="window.print()">Imprimir</button>
+  </div>
   <h1>Copantl — Reservaciones confirmadas</h1>
   <p class="meta">Impreso ${escapeHtml(new Date().toLocaleString("es-HN"))} · ${reservations.length} reserva(s)</p>
   <div class="sheet">${cards}</div>
-  <script>
-    window.onload = function() {
-      window.focus();
-      window.print();
-    };
-  </script>
 </body>
 </html>`;
 }

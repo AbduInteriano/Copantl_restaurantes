@@ -596,7 +596,7 @@ where schemaname = 'public'
 -- FIN — Checklist manual después del SQL:
 -- 1. Auth: usuarios del panel creados en Supabase Authentication
 -- 2. .env producción: NEXT_PUBLIC_SUPABASE_*, NEXT_PUBLIC_SITE_URL,
---    NEXT_PUBLIC_ADMIN_PANEL_SLUG, EmailJS (opcional)
+--    NEXT_PUBLIC_ADMIN_PANEL_SLUG, SMTP EMAIL_* (correos)
 -- 3. Storage: bucket copantl_assets con políticas (este script las aplica)
 -- 4. Realtime: si el bloque DO falló, agrega public.reservations en Publications
 -- 5. Panel → Horario de reservaciones: confirma mesas 20 / 10 / 10

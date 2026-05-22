@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { sendEmailWithTemplate } from "@/lib/email";
+import { canManageReservations, getSessionRole } from "@/lib/admin-auth";
+import { sendReservationConfirmationEmail } from "@/lib/reservation-email";
 import { validateMesaForArea } from "@/lib/mesa-server";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
@@ -8,6 +9,11 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string } },
 ) {
+  const session = await getSessionRole();
+  if (!session || !canManageReservations(session.role)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
   const payload = await req.json();
   const supabase = createClient();
 
@@ -53,20 +59,35 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const isConfirmed = status === "confirmada";
-  const mesaLabel =
-    isConfirmed && typeof updates.mesa === "number" ? String(updates.mesa) : "";
-  await sendEmailWithTemplate(process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID_STATUS, {
-    full_name: reservationData.full_name,
-    email: reservationData.email,
-    status,
-    reservation_date: reservationData.reservation_date,
-    reservation_time: reservationData.reservation_time,
-    mesa: mesaLabel,
-    message: isConfirmed
-      ? `Tu reservacion ha sido confirmada. Mesa asignada: ${mesaLabel}. Te esperamos en Copantl Reservaciones.`
-      : "Tu reservacion no pudo ser confirmada en esta ocasion. Puedes escribirnos para nuevas opciones.",
-  });
+  let emailSent = false;
+  let emailWarning: string | undefined;
 
-  return NextResponse.json({ ok: true });
+  if (status === "confirmada") {
+    const mesa =
+      typeof updates.mesa === "number" ? updates.mesa : reservationData.mesa;
+    const emailResult = await sendReservationConfirmationEmail({
+      full_name: reservationData.full_name,
+      email: reservationData.email,
+      phone: reservationData.phone,
+      reservation_date: reservationData.reservation_date,
+      reservation_time: reservationData.reservation_time,
+      guests: reservationData.guests,
+      mesa,
+      area: reservationData.area,
+      notes: reservationData.notes,
+    });
+
+    emailSent = emailResult.ok;
+    if (!emailResult.ok && !emailResult.skipped) {
+      emailWarning = `Reserva confirmada, pero no se envio el correo: ${emailResult.error}`;
+    } else if (!emailResult.ok && emailResult.skipped) {
+      emailWarning = `Reserva confirmada. ${emailResult.error}`;
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    emailSent,
+    emailWarning,
+  });
 }

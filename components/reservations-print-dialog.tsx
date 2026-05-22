@@ -16,6 +16,82 @@ type Props = {
   eventTitles: Record<string, string>;
 };
 
+/** Imprime con iframe a pantalla completa (el contenido debe tener tamano real para la vista previa). */
+function printHtmlViaIframe(html: string): boolean {
+  if (typeof document === "undefined") return false;
+
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "Vista previa de impresion");
+  iframe.style.cssText =
+    "position:fixed;inset:0;z-index:100000;width:100%;height:100%;border:0;background:#fff;";
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = win?.document;
+  if (!win || !doc) {
+    iframe.remove();
+    return false;
+  }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const cleanup = () => {
+    if (iframe.parentNode) iframe.remove();
+  };
+
+  win.addEventListener("afterprint", cleanup);
+  setTimeout(cleanup, 120_000);
+
+  let started = false;
+  const triggerPrint = () => {
+    if (started) return;
+    started = true;
+    try {
+      win.focus();
+      win.print();
+    } catch {
+      cleanup();
+    }
+  };
+
+  if (doc.readyState === "complete") {
+    setTimeout(triggerPrint, 250);
+  } else {
+    iframe.onload = () => setTimeout(triggerPrint, 250);
+    setTimeout(triggerPrint, 1200);
+  }
+
+  return true;
+}
+
+/** Respaldo: nueva pestana con Blob URL (contenido visible + boton Imprimir). */
+function printHtmlViaBlobWindow(html: string): boolean {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  if (!win) {
+    URL.revokeObjectURL(url);
+    return false;
+  }
+
+  const revoke = () => URL.revokeObjectURL(url);
+  win.addEventListener("load", () => {
+    win.focus();
+    setTimeout(() => {
+      try {
+        win.print();
+      } catch {
+        /* el usuario puede usar el boton Imprimir en la pagina */
+      }
+      revoke();
+    }, 400);
+  });
+  setTimeout(revoke, 60_000);
+  return true;
+}
+
 function toPrintable(r: Reservation): PrintableReservation {
   return {
     id: r.id,
@@ -87,16 +163,22 @@ export function ReservationsPrintDialog({ reservations, eventTitles }: Props) {
     }
 
     const html = buildReservationsPrintDocument(picked, eventTitles);
-    const win = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
-    if (!win) {
-      setMsg("Permite ventanas emergentes para imprimir.");
+
+    const printed = printHtmlViaIframe(html);
+    if (printed) {
+      setOpen(false);
+      setMsg("");
       return;
     }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    setOpen(false);
-    setMsg("");
+
+    const opened = printHtmlViaBlobWindow(html);
+    if (opened) {
+      setOpen(false);
+      setMsg("");
+      return;
+    }
+
+    setMsg("No se pudo abrir la vista de impresion. Permite ventanas emergentes o intenta de nuevo.");
   }
 
   if (confirmed.length === 0) {

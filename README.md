@@ -8,7 +8,7 @@ Sitio web premium (publico + panel admin) para reservaciones de restaurantes del
 - Tailwind CSS
 - Framer Motion
 - Supabase (DB/Auth/Storage)
-- React Hook Form + EmailJS (reservas)
+- React Hook Form + Nodemailer / Microsoft 365 SMTP (correos de reservas)
 - TipTap (editor de promociones)
 
 ## Configuracion local

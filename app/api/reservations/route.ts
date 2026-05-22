@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { sendEmailWithTemplate } from "@/lib/email";
-import { formatReservationRestaurant, parseReservationRestaurant } from "@/lib/restaurants";
+import { sendReservationReceivedEmail } from "@/lib/reservation-email";
+import { parseReservationRestaurant } from "@/lib/restaurants";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
 import { validateReservationEvent } from "@/lib/validate-reservation-event";
 import { createClient } from "@/lib/supabase/server";
@@ -56,17 +56,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  await sendEmailWithTemplate(process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID_RECEIVED, {
-    full_name: payload.full_name,
-    email: payload.email,
+  await sendReservationReceivedEmail({
+    full_name: String(payload.full_name),
+    email: String(payload.email),
     phone: payload.phone,
-    guests: payload.guests,
-    reservation_date: payload.reservation_date,
-    reservation_time: payload.reservation_time,
-    area: formatReservationRestaurant(area),
-    notes: payload.notes ?? "",
-    message:
-      "Recibimos su solicitud de reservacion y pronto nos pondremos en contacto para confirmarla.",
+    guests,
+    reservation_date: reservationDate,
+    reservation_time: reservationTime,
+    mesa: null,
+    area,
+    notes: payload.notes ?? null,
   });
 
   return NextResponse.json({ ok: true });

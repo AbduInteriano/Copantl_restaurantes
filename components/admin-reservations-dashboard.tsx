@@ -177,14 +177,22 @@ export function AdminReservationsDashboard({
         : { status };
     const res = await fetch(`/api/reservations/${id}/status`, {
       method: "PATCH",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     setLoadingId(null);
+    const j = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
       setManualMsg(j.error || "No se pudo actualizar el estado.");
       return;
+    }
+    if (status === "confirmada") {
+      if (j.emailSent) {
+        setManualMsg("Reserva confirmada y correo enviado al cliente.");
+      } else if (j.emailWarning) {
+        setManualMsg(j.emailWarning);
+      }
     }
     router.refresh();
   }
@@ -237,10 +245,17 @@ export function AdminReservationsDashboard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const j = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
       setManualMsg(j.error || "Error al crear la reserva.");
       return;
+    }
+    if (status === "confirmada") {
+      if (j.emailSent) {
+        setManualMsg("Reserva creada y correo de confirmacion enviado al cliente.");
+      } else if (j.emailWarning) {
+        setManualMsg(j.emailWarning);
+      }
     }
     e.currentTarget.reset();
     setManualDate("");

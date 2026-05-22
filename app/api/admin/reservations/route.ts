@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { canManageReservations, getSessionRole } from "@/lib/admin-auth";
+import { sendReservationConfirmationEmail } from "@/lib/reservation-email";
 import { validateMesaForArea } from "@/lib/mesa-server";
 import { parseReservationRestaurant } from "@/lib/restaurants";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
@@ -36,10 +37,14 @@ export async function POST(req: Request) {
     mesa = null;
   }
 
+  const full_name = String(payload.full_name ?? "").trim();
+  const email = String(payload.email ?? "").trim();
+  const phone = String(payload.phone ?? "").trim();
+
   const { error } = await supabase.from("reservations").insert({
-    full_name: String(payload.full_name ?? "").trim(),
-    email: String(payload.email ?? "").trim(),
-    phone: String(payload.phone ?? "").trim(),
+    full_name,
+    email,
+    phone,
     reservation_date: payload.reservation_date,
     reservation_time: payload.reservation_time,
     guests,
@@ -60,5 +65,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true });
+  let emailSent = false;
+  let emailWarning: string | undefined;
+
+  if (status === "confirmada") {
+    const emailResult = await sendReservationConfirmationEmail({
+      full_name,
+      email,
+      phone,
+      reservation_date: payload.reservation_date,
+      reservation_time: payload.reservation_time,
+      guests,
+      mesa,
+      area,
+      notes: payload.notes ? String(payload.notes) : null,
+    });
+    emailSent = emailResult.ok;
+    if (!emailResult.ok) {
+      emailWarning = emailResult.skipped
+        ? `Reserva creada. ${emailResult.error}`
+        : `Reserva creada, pero no se envio el correo: ${emailResult.error}`;
+    }
+  }
+
+  return NextResponse.json({ ok: true, emailSent, emailWarning });
 }
