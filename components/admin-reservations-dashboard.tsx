@@ -198,12 +198,23 @@ export function AdminReservationsDashboard({
         );
       }
     } else if (status === "cancelada") {
+      const dest = j.emailTo ? ` (${j.emailTo})` : "";
       if (j.emailSent) {
-        setManualMsg("Reserva rechazada y correo de notificacion enviado al cliente.");
+        setManualMsg(
+          `Reserva rechazada. Correo de notificacion enviado al cliente${dest}. Revise tambien spam o correo no deseado.`,
+        );
       } else if (j.emailWarning) {
         setManualMsg(j.emailWarning);
+      } else if (j.emailSkipReason) {
+        setManualMsg(`Reserva rechazada. ${j.emailSkipReason}`);
+      } else if (j.emailAttempted === false) {
+        setManualMsg(
+          "Reserva rechazada. No se intento enviar correo (solo aplica a solicitudes pendientes).",
+        );
       } else {
-        setManualMsg("Reserva rechazada.");
+        setManualMsg(
+          `Reserva rechazada. No se reporto envio de correo${dest}. Revise variables SMTP en el servidor y redeploy.`,
+        );
       }
     }
     router.refresh();

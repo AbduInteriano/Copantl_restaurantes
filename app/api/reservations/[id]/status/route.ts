@@ -9,6 +9,16 @@ import { validateMesaForArea } from "@/lib/mesa-server";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function maskEmail(email: string): string {
+  const e = email.trim();
+  const at = e.indexOf("@");
+  if (at <= 1) return "***";
+  return `${e.slice(0, 2)}***${e.slice(at)}`;
+}
+
 function buildEmailFeedback(
   action: "confirmada" | "rechazada",
   result: EmailSendResult,
@@ -106,8 +116,12 @@ export async function PATCH(
 
   let emailSent = false;
   let emailWarning: string | undefined;
+  let emailAttempted = false;
+  let emailSkipReason: string | undefined;
+  const emailTo = reservationData.email?.trim() || "";
 
   if (status === "confirmada") {
+    emailAttempted = true;
     emailPayload.mesa =
       typeof updates.mesa === "number" ? updates.mesa : reservationData.mesa;
     const feedback = buildEmailFeedback(
@@ -116,18 +130,37 @@ export async function PATCH(
     );
     emailSent = feedback.emailSent;
     emailWarning = feedback.emailWarning;
-  } else if (status === "cancelada" && previousStatus === "pendiente") {
-    const feedback = buildEmailFeedback(
-      "rechazada",
-      await sendReservationRejectionEmail(emailPayload),
-    );
-    emailSent = feedback.emailSent;
-    emailWarning = feedback.emailWarning;
+  } else if (status === "cancelada") {
+    if (previousStatus === "pendiente") {
+      emailAttempted = true;
+      const feedback = buildEmailFeedback(
+        "rechazada",
+        await sendReservationRejectionEmail(emailPayload),
+      );
+      emailSent = feedback.emailSent;
+      emailWarning = feedback.emailWarning;
+    } else {
+      emailSkipReason = `La reserva ya estaba en estado «${previousStatus}»; el correo de rechazo solo se envia desde «pendiente».`;
+    }
   }
+
+  console.info("[reservation-status]", {
+    id: params.id,
+    status,
+    previousStatus,
+    emailAttempted,
+    emailSent,
+    emailSkipReason: emailSkipReason ?? null,
+    emailWarning: emailWarning ?? null,
+    emailTo: emailTo ? maskEmail(emailTo) : null,
+  });
 
   return NextResponse.json({
     ok: true,
     emailSent,
+    emailAttempted,
     emailWarning,
+    emailSkipReason,
+    emailTo: emailTo ? maskEmail(emailTo) : undefined,
   });
 }
