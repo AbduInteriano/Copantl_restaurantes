@@ -1,9 +1,41 @@
 import { NextResponse } from "next/server";
 import { canManageReservations, getSessionRole } from "@/lib/admin-auth";
-import { sendReservationConfirmationEmail } from "@/lib/reservation-email";
+import type { EmailSendResult } from "@/lib/email";
+import {
+  sendReservationConfirmationEmail,
+  sendReservationRejectionEmail,
+} from "@/lib/reservation-email";
 import { validateMesaForArea } from "@/lib/mesa-server";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
+
+function buildEmailFeedback(
+  action: "confirmada" | "rechazada",
+  result: EmailSendResult,
+): { emailSent: boolean; emailWarning?: string } {
+  if (result.ok) {
+    return {
+      emailSent: true,
+      emailWarning: undefined,
+    };
+  }
+  if (result.skipped) {
+    return {
+      emailSent: false,
+      emailWarning:
+        action === "confirmada"
+          ? `Reserva confirmada. ${result.error}`
+          : `Reserva rechazada. ${result.error}`,
+    };
+  }
+  return {
+    emailSent: false,
+    emailWarning:
+      action === "confirmada"
+        ? `Reserva confirmada, pero no se envio el correo: ${result.error}`
+        : `Reserva rechazada, pero no se envio el correo al cliente: ${result.error}`,
+  };
+}
 
 export async function PATCH(
   req: Request,
@@ -30,6 +62,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Reserva no encontrada" }, { status: 404 });
   }
 
+  const previousStatus = reservationData.status;
   const status = payload.status as Database["public"]["Tables"]["reservations"]["Row"]["status"];
   const updates: Record<string, unknown> = { status };
 
@@ -59,30 +92,37 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  const emailPayload = {
+    full_name: reservationData.full_name,
+    email: reservationData.email,
+    phone: reservationData.phone,
+    reservation_date: reservationData.reservation_date,
+    reservation_time: reservationData.reservation_time,
+    guests: reservationData.guests,
+    mesa: null as number | null,
+    area: reservationData.area,
+    notes: reservationData.notes,
+  };
+
   let emailSent = false;
   let emailWarning: string | undefined;
 
   if (status === "confirmada") {
-    const mesa =
+    emailPayload.mesa =
       typeof updates.mesa === "number" ? updates.mesa : reservationData.mesa;
-    const emailResult = await sendReservationConfirmationEmail({
-      full_name: reservationData.full_name,
-      email: reservationData.email,
-      phone: reservationData.phone,
-      reservation_date: reservationData.reservation_date,
-      reservation_time: reservationData.reservation_time,
-      guests: reservationData.guests,
-      mesa,
-      area: reservationData.area,
-      notes: reservationData.notes,
-    });
-
-    emailSent = emailResult.ok;
-    if (!emailResult.ok && !emailResult.skipped) {
-      emailWarning = `Reserva confirmada, pero no se envio el correo: ${emailResult.error}`;
-    } else if (!emailResult.ok && emailResult.skipped) {
-      emailWarning = `Reserva confirmada. ${emailResult.error}`;
-    }
+    const feedback = buildEmailFeedback(
+      "confirmada",
+      await sendReservationConfirmationEmail(emailPayload),
+    );
+    emailSent = feedback.emailSent;
+    emailWarning = feedback.emailWarning;
+  } else if (status === "cancelada" && previousStatus === "pendiente") {
+    const feedback = buildEmailFeedback(
+      "rechazada",
+      await sendReservationRejectionEmail(emailPayload),
+    );
+    emailSent = feedback.emailSent;
+    emailWarning = feedback.emailWarning;
   }
 
   return NextResponse.json({

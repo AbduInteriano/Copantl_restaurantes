@@ -1,6 +1,7 @@
 import {
   buildReservationConfirmationEmail,
   buildReservationReceivedEmail,
+  buildReservationRejectionEmail,
   type ReservationEmailTemplateParams,
 } from "@/lib/email-templates";
 import { sendSmtpEmail, type EmailSendResult } from "@/lib/email";
@@ -84,6 +85,25 @@ export async function sendReservationReceivedEmail(
   });
 
   const { subject, html, text } = buildReservationReceivedEmail(params);
+  return sendSmtpEmail({
+    to: params.email,
+    subject,
+    html,
+    text,
+  });
+}
+
+/** Correo al rechazar una solicitud pendiente desde el panel admin. */
+export async function sendReservationRejectionEmail(
+  reservation: ReservationEmailPayload,
+): Promise<EmailSendResult> {
+  const params = toTemplateParams(reservation, {
+    status: "cancelada",
+    mesa: "—",
+    message: "",
+  });
+
+  const { subject, html, text } = buildReservationRejectionEmail(params);
   return sendSmtpEmail({
     to: params.email,
     subject,

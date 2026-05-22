@@ -189,9 +189,21 @@ export function AdminReservationsDashboard({
     }
     if (status === "confirmada") {
       if (j.emailSent) {
-        setManualMsg("Reserva confirmada y correo enviado al cliente.");
+        setManualMsg("Reserva confirmada y correo enviado al correo del cliente.");
       } else if (j.emailWarning) {
         setManualMsg(j.emailWarning);
+      } else {
+        setManualMsg(
+          "Reserva confirmada. No se reporto envio de correo (revisa variables SMTP en el servidor).",
+        );
+      }
+    } else if (status === "cancelada") {
+      if (j.emailSent) {
+        setManualMsg("Reserva rechazada y correo de notificacion enviado al cliente.");
+      } else if (j.emailWarning) {
+        setManualMsg(j.emailWarning);
+      } else {
+        setManualMsg("Reserva rechazada.");
       }
     }
     router.refresh();

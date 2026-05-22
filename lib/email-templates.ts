@@ -71,6 +71,28 @@ const confirmationFooterText = [
   `WhatsApp: ${WHATSAPP_URL}`,
 ].join("\n");
 
+const rejectionFooterHtml = `
+<tr>
+  <td style="padding:20px 28px 28px;background:#f8fafc;border-top:1px solid #e5e7eb;">
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#374151;">
+      Si desea realizar una nueva solicitud o necesita orientacion, con gusto le atendemos.
+    </p>
+    <p style="margin:0;font-size:14px;line-height:1.5;">
+      <a href="${WHATSAPP_URL}" style="color:#1e3a5f;font-weight:600;text-decoration:underline;">Contactenos por WhatsApp</a>
+    </p>
+    <p style="margin:16px 0 0;font-size:13px;color:#64748b;">Copantl Hotel &amp; Convention Center</p>
+  </td>
+</tr>`;
+
+const rejectionFooterText = [
+  "",
+  "Si desea realizar una nueva solicitud o necesita orientacion, con gusto le atendemos.",
+  `WhatsApp: ${WHATSAPP_URL}`,
+  "",
+  "Atentamente,",
+  "Copantl Hotel & Convention Center",
+].join("\n");
+
 /** Correo al confirmar reserva (panel admin). Edita aqui el diseno y textos. */
 export function buildReservationConfirmationEmail(p: ReservationEmailTemplateParams): {
   subject: string;
@@ -180,6 +202,79 @@ export function buildReservationReceivedEmail(p: ReservationEmailTemplateParams)
   </td>
 </tr>
 ${confirmationFooterHtml}`;
+
+  return { subject, html: emailShell(body), text };
+}
+
+/** Correo al rechazar una solicitud pendiente (panel admin). */
+export function buildReservationRejectionEmail(p: ReservationEmailTemplateParams): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const subject = "Actualizacion de su solicitud de reservacion — Copantl Hotel & Convention Center";
+
+  const intro =
+    "Lamentamos informarle que, en esta ocasion, su solicitud de reservacion no ha podido ser confirmada.";
+
+  const text = [
+    `Estimado(a) ${p.full_name},`,
+    "",
+    intro,
+    "",
+    "A continuacion, los datos de la solicitud:",
+    "",
+    `Fecha: ${p.reservation_date}`,
+    `Hora: ${p.reservation_time}`,
+    `Restaurante: ${p.restaurant}`,
+    `Personas: ${p.guests}`,
+    p.phone ? `Telefono: ${p.phone}` : "",
+    "",
+    "Agradecemos su comprension y quedamos a su disposicion para futuras reservaciones.",
+    rejectionFooterText,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const body = `
+<tr>
+  <td style="padding:28px 28px 16px;background:#475569;text-align:center;">
+    <p style="margin:0;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:#e2e8f0;">Copantl Hotel &amp; Convention Center</p>
+    <h1 style="margin:12px 0 0;font-size:21px;line-height:1.4;font-weight:600;color:#ffffff;">
+      Actualizacion de su solicitud de reservacion
+    </h1>
+  </td>
+</tr>
+<tr>
+  <td style="padding:24px 28px 8px;">
+    <p style="margin:0 0 16px;font-size:16px;line-height:1.5;color:#111827;">
+      Estimado(a) <strong>${escapeHtml(p.full_name)}</strong>,
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">
+      ${escapeHtml(intro)}
+    </p>
+    <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#374151;">
+      Agradecemos su interes en visitarnos. A continuacion, le compartimos los datos de la solicitud:
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa;" role="presentation">
+      <tr><td colspan="2" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#475569;">Detalles de la solicitud</td></tr>
+      <tr><td colspan="2" style="padding:4px 16px 12px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+          ${row("Fecha", p.reservation_date)}
+          ${row("Hora", p.reservation_time)}
+          ${row("Restaurante", p.restaurant)}
+          ${row("Personas", String(p.guests))}
+          ${row("Estado", "No confirmada")}
+          ${p.phone ? row("Telefono", p.phone) : ""}
+        </table>
+      </td></tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:15px;line-height:1.6;color:#374151;">
+      Agradecemos su comprension y quedamos a su disposicion para asistirle en una proxima oportunidad.
+    </p>
+  </td>
+</tr>
+${rejectionFooterHtml}`;
 
   return { subject, html: emailShell(body), text };
 }
