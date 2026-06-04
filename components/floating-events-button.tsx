@@ -136,13 +136,13 @@ export function FloatingEventsButton({ items, whatsappHref, embedded }: Props) {
                   )}
 
                   <div className="mt-6 flex flex-col gap-3 border-t border-[var(--border)]/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-[var(--foreground-muted)]">¿Quieres vivir la experiencia CAVA?</p>
+                    <p className="text-sm text-[var(--foreground-muted)]">¿Quieres reservar en Copantl?</p>
                     <button
                       type="button"
                       onClick={openReserveFromEvents}
-                      className="w-full rounded-md bg-[var(--accent-gold)] px-6 py-3 text-center text-sm font-medium text-[var(--foreground)] transition hover:opacity-95 sm:w-auto sm:min-w-[200px]"
+                      className="btn-primary w-full px-6 py-3 text-center text-sm sm:w-auto sm:min-w-[200px]"
                     >
-                      Reserva ahora
+                      Reservar
                     </button>
                   </div>
                 </>
@@ -209,9 +209,9 @@ export function FloatingEventsButton({ items, whatsappHref, embedded }: Props) {
                   setSelectedIndex(null);
                   openReserveFromEvents();
                 }}
-                className="w-full rounded-md bg-[var(--accent-gold)] px-6 py-3 text-center text-sm font-medium text-[var(--foreground)] transition hover:opacity-95 sm:w-auto"
+                className="btn-primary w-full px-6 py-3 text-center text-sm sm:w-auto"
               >
-                Reserva ahora
+                Reservar
               </button>
             </div>
           </div>

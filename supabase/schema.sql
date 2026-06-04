@@ -2,9 +2,11 @@ create extension if not exists "pgcrypto";
 
 create table if not exists public.site_settings (
   id int primary key default 1,
-  hero_title text not null default 'CAVA',
-  hero_subtitle text not null default 'Drinks Experience',
+  hero_title text not null default 'Copantl Reservaciones',
+  hero_subtitle text not null default 'By Copantl',
   logo_url text,
+  logo_url_2 text,
+  logo_url_3 text,
   instagram_url text,
   facebook_url text,
   tiktok_url text,
@@ -18,6 +20,8 @@ create table if not exists public.site_settings (
 );
 
 alter table public.site_settings add column if not exists logo_url text;
+alter table public.site_settings add column if not exists logo_url_2 text;
+alter table public.site_settings add column if not exists logo_url_3 text;
 alter table public.site_settings add column if not exists instagram_url text;
 alter table public.site_settings add column if not exists facebook_url text;
 alter table public.site_settings add column if not exists tiktok_url text;
@@ -76,10 +80,45 @@ create table if not exists public.event_banners (
   created_at timestamptz not null default now()
 );
 alter table public.event_banners alter column title drop not null;
+alter table public.event_banners add column if not exists event_date date;
+alter table public.event_banners add column if not exists reservation_start_time time;
+alter table public.event_banners add column if not exists reservation_end_time time;
+
+create table if not exists public.event_banner_restaurants (
+  event_id uuid not null references public.event_banners(id) on delete cascade,
+  restaurant public.restaurant_key not null,
+  primary key (event_id, restaurant)
+);
+
+alter table public.event_banner_restaurants enable row level security;
+
+drop policy if exists "Public read event restaurants" on public.event_banner_restaurants;
+create policy "Public read event restaurants" on public.event_banner_restaurants
+  for select using (true);
+
+drop policy if exists "Admin manage event restaurants" on public.event_banner_restaurants;
+create policy "Admin manage event restaurants" on public.event_banner_restaurants
+  for all using (public.is_app_admin()) with check (public.is_app_admin());
 
 create table if not exists public.gallery_items (
   id uuid primary key default gen_random_uuid(),
   title text,
+  image_url text not null,
+  sort_order int not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+do $$
+begin
+  create type public.restaurant_key as enum ('la_churrasqueria', 'la_posada', 'cbari');
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.restaurant_menu_images (
+  id uuid primary key default gen_random_uuid(),
+  restaurant public.restaurant_key not null,
   image_url text not null,
   sort_order int not null default 0,
   is_active boolean not null default true,
@@ -104,10 +143,13 @@ create table if not exists public.reservations (
   mesa int,
   source text not null default 'web' check (source in ('web', 'manual')),
   notes text,
+  rejection_reason text,
   status reservation_status not null default 'pendiente',
   created_at timestamptz not null default now(),
-  constraint reservations_mesa_range check (mesa is null or (mesa >= 1 and mesa <= 10))
+  constraint reservations_mesa_range check (mesa is null or mesa >= 1)
 );
+
+alter table public.reservations add column if not exists rejection_reason text;
 
 alter table public.gallery_items alter column title drop not null;
 alter table public.reservations drop column if exists selected_product;
@@ -120,7 +162,7 @@ alter table public.reservations add constraint reservations_guests_check check (
 
 do $$
 begin
-  alter table public.reservations add constraint reservations_mesa_range check (mesa is null or (mesa >= 1 and mesa <= 10));
+  alter table public.reservations add constraint reservations_mesa_range check (mesa is null or mesa >= 1);
 exception
   when duplicate_object then null;
 end $$;
@@ -132,16 +174,27 @@ exception
   when duplicate_object then null;
 end $$;
 
+drop index if exists public.reservations_confirmada_mesa_slot_uidx;
 create unique index if not exists reservations_confirmada_mesa_slot_uidx
-on public.reservations (reservation_date, reservation_time, mesa)
-where status = 'confirmada' and mesa is not null;
+  on public.reservations (reservation_date, reservation_time, area, mesa)
+  where status = 'confirmada' and mesa is not null;
 
--- Perfiles de panel: administrador (todo) vs supervisor (solo reservas)
+-- Perfiles de panel: roles de acceso al admin
 do $$ begin
-  create type public.app_role as enum ('admin', 'supervisor');
+  create type public.app_role as enum (
+    'super_admin',
+    'admin',
+    'supervisor',
+    'reservaciones',
+    'reporteria'
+  );
 exception
   when duplicate_object then null;
 end $$;
+
+alter type public.app_role add value if not exists 'super_admin';
+alter type public.app_role add value if not exists 'reservaciones';
+alter type public.app_role add value if not exists 'reporteria';
 
 create table if not exists public.user_profiles (
   user_id uuid primary key references auth.users (id) on delete cascade,
@@ -153,6 +206,32 @@ insert into public.user_profiles (user_id, role)
 select id, 'admin'::public.app_role from auth.users
 on conflict (user_id) do nothing;
 
+create or replace function public.current_app_role()
+returns public.app_role
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  r public.app_role;
+  uemail text;
+begin
+  if auth.uid() is null then
+    return null;
+  end if;
+  select email into uemail from auth.users where id = auth.uid();
+  if lower(coalesce(uemail, '')) = 'abdu.interiano@copantl.com' then
+    return 'super_admin'::public.app_role;
+  end if;
+  select role into r from public.user_profiles where user_id = auth.uid();
+  if r is null then
+    return 'admin'::public.app_role;
+  end if;
+  return r;
+end;
+$$;
+
 create or replace function public.is_app_admin()
 returns boolean
 language plpgsql
@@ -160,21 +239,77 @@ stable
 security definer
 set search_path = public
 as $$
+declare
+  r public.app_role;
 begin
-  if auth.uid() is null then
+  r := public.current_app_role();
+  if r is null then
     return false;
   end if;
-  if not exists (select 1 from public.user_profiles where user_id = auth.uid()) then
-    return true;
-  end if;
-  return exists (
-    select 1 from public.user_profiles
-    where user_id = auth.uid() and role = 'admin'::public.app_role
+  return r in (
+    'super_admin'::public.app_role,
+    'admin'::public.app_role,
+    'supervisor'::public.app_role
   );
 end;
 $$;
 
+create or replace function public.can_staff_reservations()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  r public.app_role;
+begin
+  r := public.current_app_role();
+  if r is null then
+    return false;
+  end if;
+  return r in (
+    'super_admin'::public.app_role,
+    'admin'::public.app_role,
+    'reservaciones'::public.app_role
+  );
+end;
+$$;
+
+create or replace function public.can_access_reports()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  r public.app_role;
+begin
+  r := public.current_app_role();
+  if r is null then
+    return false;
+  end if;
+  return r in (
+    'super_admin'::public.app_role,
+    'admin'::public.app_role,
+    'supervisor'::public.app_role,
+    'reporteria'::public.app_role
+  );
+end;
+$$;
+
+grant execute on function public.current_app_role() to authenticated, anon;
 grant execute on function public.is_app_admin() to authenticated, anon;
+grant execute on function public.can_staff_reservations() to authenticated, anon;
+grant execute on function public.can_access_reports() to authenticated, anon;
+
+-- Super administrador fijo por correo
+insert into public.user_profiles (user_id, role)
+select id, 'super_admin'::public.app_role
+from auth.users
+where lower(email) = 'abdu.interiano@copantl.com'
+on conflict (user_id) do update set role = excluded.role;
 
 alter table public.user_profiles enable row level security;
 
@@ -190,6 +325,7 @@ alter table public.menu_items enable row level security;
 alter table public.promotions enable row level security;
 alter table public.event_banners enable row level security;
 alter table public.gallery_items enable row level security;
+alter table public.restaurant_menu_images enable row level security;
 alter table public.reservations enable row level security;
 
 drop policy if exists "Public read categories" on public.menu_categories;
@@ -203,6 +339,9 @@ create policy "Public read promotions" on public.promotions for select using (is
 
 drop policy if exists "Public read gallery" on public.gallery_items;
 create policy "Public read gallery" on public.gallery_items for select using (is_active = true);
+
+drop policy if exists "Public read restaurant menus" on public.restaurant_menu_images;
+create policy "Public read restaurant menus" on public.restaurant_menu_images for select using (is_active = true);
 
 drop policy if exists "Public read event banners" on public.event_banners;
 create policy "Public read event banners" on public.event_banners for select using (is_active = true);
@@ -243,11 +382,21 @@ create policy "Admin manage gallery" on public.gallery_items
 for all to authenticated
 using (public.is_app_admin()) with check (public.is_app_admin());
 
+drop policy if exists "Admin manage restaurant menus" on public.restaurant_menu_images;
+create policy "Admin manage restaurant menus" on public.restaurant_menu_images
+for all to authenticated
+using (public.is_app_admin()) with check (public.is_app_admin());
+
 drop policy if exists "Admin full access reservations" on public.reservations;
 drop policy if exists "Staff manage reservations" on public.reservations;
 create policy "Staff manage reservations" on public.reservations
 for all to authenticated
-using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+using (public.can_staff_reservations()) with check (public.can_staff_reservations());
+
+drop policy if exists "Staff read reservations for reports" on public.reservations;
+create policy "Staff read reservations for reports" on public.reservations
+for select to authenticated
+using (public.can_access_reports());
 
 drop policy if exists "Admin full access settings" on public.site_settings;
 drop policy if exists "Admin manage settings" on public.site_settings;
@@ -258,19 +407,28 @@ using (public.is_app_admin()) with check (public.is_app_admin());
 insert into public.site_settings (id, hero_title, hero_subtitle, about_text, address, phone, email, opening_hours)
 values (
   1,
-  'CAVA',
-  'Drinks Experience',
-  'Un refugio sofisticado para amantes del vino, destilados y tabaco premium en San Pedro Sula.',
-  'Plaza Las Terrazas, Local #201, 5 Calle, 21 Avenida, San Pedro Sula, Honduras',
+  'Copantl Reservaciones',
+  'By Copantl',
+  'Reserva tu mesa en los restaurantes del Hotel Copantl. Experiencia gastronomica premium en San Pedro Sula.',
+  'Hotel Copantl, San Pedro Sula, Honduras',
   '+504 0000-0000',
-  'reservas@cavahn.com',
+  'reservas@copantl.com',
   '[{"day":"Lunes a Jueves","hours":"5:00 PM - 12:00 AM"},{"day":"Viernes y Sabado","hours":"5:00 PM - 2:00 AM"},{"day":"Domingo","hours":"Cerrado"}]'::jsonb
 )
 on conflict (id) do nothing;
 
-insert into storage.buckets (id, name, public)
-values ('cava-assets', 'cava-assets', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'copantl_assets',
+  'copantl_assets',
+  true,
+  10485760,
+  array['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif']::text[]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 insert into public.menu_categories (name, product_type, sort_order)
 values
@@ -283,44 +441,98 @@ values
 on conflict (name, product_type) do nothing;
 
 drop policy if exists "Public can read cava assets" on storage.objects;
-create policy "Public can read cava assets"
+drop policy if exists "Public can read copantl assets" on storage.objects;
+create policy "Public can read copantl assets"
 on storage.objects for select
-using (bucket_id = 'cava-assets');
+using (bucket_id = 'copantl_assets');
 
 drop policy if exists "Authenticated can upload cava assets" on storage.objects;
 drop policy if exists "Admin can upload cava assets" on storage.objects;
-create policy "Admin can upload cava assets"
+drop policy if exists "Admin can upload copantl assets" on storage.objects;
+create policy "Admin can upload copantl assets"
 on storage.objects for insert
 to authenticated
-with check (bucket_id = 'cava-assets' and public.is_app_admin());
+with check (bucket_id = 'copantl_assets' and public.is_app_admin());
 
 drop policy if exists "Admin can update cava assets" on storage.objects;
-create policy "Admin can update cava assets"
+drop policy if exists "Admin can update copantl assets" on storage.objects;
+create policy "Admin can update copantl assets"
 on storage.objects for update
 to authenticated
-using (bucket_id = 'cava-assets' and public.is_app_admin());
+using (bucket_id = 'copantl_assets' and public.is_app_admin());
 
 drop policy if exists "Admin can delete cava assets" on storage.objects;
-create policy "Admin can delete cava assets"
+drop policy if exists "Admin can delete copantl assets" on storage.objects;
+create policy "Admin can delete copantl assets"
 on storage.objects for delete
 to authenticated
-using (bucket_id = 'cava-assets' and public.is_app_admin());
+using (bucket_id = 'copantl_assets' and public.is_app_admin());
 
--- Reservas: area (Climatizado / Terraza) y hasta 20 personas (BD existente: ejecutar en Supabase SQL)
+-- Reservas: restaurante (cbari / la_posada / la_churrasqueria) y hasta 20 personas
 alter table public.reservations add column if not exists area text;
-update public.reservations set area = 'climatizado' where area is null;
-alter table public.reservations alter column area set default 'climatizado';
+update public.reservations set area = 'cbari' where area is null or area in ('climatizado', 'terraza');
+alter table public.reservations alter column area set default 'cbari';
 alter table public.reservations alter column area set not null;
 
-do $$
-begin
-  alter table public.reservations add constraint reservations_area_check check (area in ('climatizado', 'terraza'));
-exception
-  when duplicate_object then null;
-end $$;
+alter table public.reservations drop constraint if exists reservations_area_check;
+alter table public.reservations add constraint reservations_area_check
+  check (area in ('cbari', 'la_posada', 'la_churrasqueria'));
 
 alter table public.reservations drop constraint if exists reservations_guests_check;
 alter table public.reservations add constraint reservations_guests_check check (guests >= 1 and guests <= 20);
+
+alter table public.reservations add column if not exists event_id uuid references public.event_banners(id) on delete set null;
+
+create table if not exists public.restaurant_profiles (
+  restaurant public.restaurant_key primary key,
+  reservation_start_time time not null default '13:00',
+  reservation_end_time time not null default '22:00',
+  display_hours_text text not null default '',
+  table_count int not null default 10 check (table_count >= 1 and table_count <= 99),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.restaurant_profiles add column if not exists table_count int not null default 10 check (table_count >= 1 and table_count <= 99);
+
+update public.restaurant_profiles set table_count = 20 where restaurant = 'la_posada' and table_count = 10;
+update public.restaurant_profiles set table_count = 10 where restaurant in ('cbari', 'la_churrasqueria');
+
+insert into public.restaurant_profiles (restaurant, reservation_start_time, reservation_end_time, display_hours_text, table_count)
+values
+  ('cbari', '13:00', '22:00', '', 10),
+  ('la_posada', '13:00', '22:00', '', 20),
+  ('la_churrasqueria', '13:00', '22:00', '', 10)
+on conflict (restaurant) do nothing;
+
+alter table public.reservations drop constraint if exists reservations_mesa_range;
+alter table public.reservations add constraint reservations_mesa_range check (mesa is null or mesa >= 1);
+
+drop index if exists public.reservations_confirmada_mesa_slot_uidx;
+create unique index if not exists reservations_confirmada_mesa_slot_uidx
+  on public.reservations (reservation_date, reservation_time, area, mesa)
+  where status = 'confirmada' and mesa is not null;
+
+alter table public.restaurant_profiles enable row level security;
+
+drop policy if exists "Public read restaurant profiles" on public.restaurant_profiles;
+create policy "Public read restaurant profiles" on public.restaurant_profiles for select using (true);
+
+drop policy if exists "Admin manage restaurant profiles" on public.restaurant_profiles;
+create policy "Admin manage restaurant profiles" on public.restaurant_profiles
+  for all using (public.is_app_admin()) with check (public.is_app_admin());
+
+create table if not exists public.admin_login_lockouts (
+  email text primary key,
+  failed_attempts int not null default 0 check (failed_attempts >= 0),
+  locked_until timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.admin_login_lockouts enable row level security;
+
+drop policy if exists "Service role lockouts" on public.admin_login_lockouts;
+create policy "Service role lockouts" on public.admin_login_lockouts
+  for all using (false) with check (false);
 
 -- Aviso en panel admin (Realtime): en Supabase, Database > Publications > supabase_realtime,
 -- agrega la tabla public.reservations si los INSERT no disparan el canal en el cliente.

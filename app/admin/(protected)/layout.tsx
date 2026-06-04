@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { AdminNewReservationNotify } from "@/components/admin-new-reservation-notify";
 import { AdminShell } from "@/components/admin-shell";
-import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import { getDefaultAdminPath, getRoleLabel, getSessionRole } from "@/lib/admin-auth";
+import { adminPath } from "@/lib/admin-path";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ProtectedAdminLayout({
@@ -11,16 +12,17 @@ export default async function ProtectedAdminLayout({
 }) {
   const supabase = createClient();
   const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/admin/login");
+  if (!data.user) redirect(adminPath("/login"));
 
   const session = await getSessionRole();
-  const showAdminNav = Boolean(session && isAdminRole(session.role));
-  const roleLabel = session && isAdminRole(session.role) ? "Administrador" : "Supervisor";
+  if (!session) redirect(adminPath("/login"));
+
+  const roleLabel = getRoleLabel(session.role);
 
   return (
     <div className="admin-shell min-h-screen bg-[var(--admin-bg)] text-[var(--admin-foreground)]">
       <AdminNewReservationNotify />
-      <AdminShell showAdminNav={showAdminNav} roleLabel={roleLabel}>
+      <AdminShell session={session} roleLabel={roleLabel} defaultPath={getDefaultAdminPath(session.role)}>
         {children}
       </AdminShell>
     </div>

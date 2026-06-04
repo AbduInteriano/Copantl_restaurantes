@@ -1,24 +1,33 @@
 ﻿"use client";
 
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
+import { ReservationsPrintDialog } from "@/components/reservations-print-dialog";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { Database } from "@/lib/supabase/types";
 import {
+  getTableCountMap,
+  type RestaurantProfile,
+} from "@/lib/restaurant-profiles";
+import {
   MAX_GUESTS_PER_RESERVATION,
-  MESA_COUNT,
   availableMesaList,
+  filterOperationalReservations,
   formatReservationArea,
   formatReservationAreaLong,
+  getTableCountForArea,
   hasReservationSlotConflict,
   normalizeTimeKey,
 } from "@/lib/reservations";
+import { RESTAURANTS, parseReservationRestaurant, type RestaurantKey } from "@/lib/restaurants";
 import { formatReservationTimeSlotLabel, RESERVATION_TIME_SLOT_VALUES, snapReservationTimeToHalfHour } from "@/lib/reservation-time-slots";
 
 type Reservation = Database["public"]["Tables"]["reservations"]["Row"];
 
 type Props = {
   reservations: Reservation[];
+  eventTitles?: Record<string, string>;
+  restaurantProfiles: RestaurantProfile[];
 };
 
 const MONTHS_ES = [
@@ -31,12 +40,22 @@ function padDate(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-function mesaColor(mesa: number): string {
-  const hue = 8 + ((mesa - 1) * 36) % 360;
+function mesaColor(mesa: number, tableCount: number): string {
+  const span = Math.max(1, tableCount);
+  const hue = 8 + Math.floor(((mesa - 1) * 360) / span) % 360;
   return `hsl(${hue} 62% 42%)`;
 }
 
-export function AdminReservationsDashboard({ reservations }: Props) {
+export function AdminReservationsDashboard({
+  reservations,
+  eventTitles = {},
+  restaurantProfiles,
+}: Props) {
+  const tableCountMap = useMemo(() => getTableCountMap(restaurantProfiles), [restaurantProfiles]);
+  const operationalReservations = useMemo(
+    () => filterOperationalReservations(reservations),
+    [reservations],
+  );
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -56,37 +75,43 @@ export function AdminReservationsDashboard({ reservations }: Props) {
   const [includeCancelledInList, setIncludeCancelledInList] = useState(false);
   const [manualDate, setManualDate] = useState("");
   const [manualTime, setManualTime] = useState("");
+  const [manualArea, setManualArea] = useState<RestaurantKey>("cbari");
   const [manualStatus, setManualStatus] = useState<"confirmada" | "pendiente">("confirmada");
+  const [calendarRestaurant, setCalendarRestaurant] = useState<RestaurantKey>("la_posada");
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     reservation_date: "",
     reservation_time: "",
     mesa: "",
+    notes: "",
   });
 
   const editingReservation = useMemo(
-    () => (editId ? reservations.find((r) => r.id === editId) ?? null : null),
-    [editId, reservations],
+    () => (editId ? operationalReservations.find((r) => r.id === editId) ?? null : null),
+    [editId, operationalReservations],
   );
+
+  const calendarTableCount = tableCountMap[calendarRestaurant] ?? 10;
 
   const manualFreeMesas = useMemo(() => {
     if (manualStatus !== "confirmada" || !manualDate || !manualTime) return [];
-    return availableMesaList(reservations, manualDate, manualTime);
-  }, [reservations, manualDate, manualTime, manualStatus]);
+    const count = getTableCountForArea(manualArea, tableCountMap);
+    return availableMesaList(operationalReservations, manualArea, count, manualDate, manualTime);
+  }, [operationalReservations, manualDate, manualTime, manualStatus, manualArea, tableCountMap]);
 
   const confirmed = useMemo(
-    () => reservations.filter((r) => r.status === "confirmada"),
-    [reservations],
+    () => operationalReservations.filter((r) => r.status === "confirmada"),
+    [operationalReservations],
   );
   const pending = useMemo(
-    () => reservations.filter((r) => r.status === "pendiente"),
-    [reservations],
+    () => operationalReservations.filter((r) => r.status === "pendiente"),
+    [operationalReservations],
   );
 
   const activeReservations = useMemo(() => {
     const act = includeCancelledInList
-      ? reservations
-      : reservations.filter((r) => r.status !== "cancelada");
+      ? operationalReservations
+      : operationalReservations.filter((r) => r.status !== "cancelada");
     return [...act].sort((a, b) => {
       const st = (x: Reservation) => (x.status === "cancelada" ? 1 : 0);
       const sc = st(a) - st(b);
@@ -95,7 +120,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       if (d !== 0) return d;
       return normalizeTimeKey(a.reservation_time).localeCompare(normalizeTimeKey(b.reservation_time));
     });
-  }, [reservations, includeCancelledInList]);
+  }, [operationalReservations, includeCancelledInList]);
 
   const filteredActive = useMemo(() => {
     const q = activeSearch.trim().toLowerCase();
@@ -106,13 +131,14 @@ export function AdminReservationsDashboard({ reservations }: Props) {
   }, [activeReservations, activeSearch]);
 
   const activeOnlyCount = useMemo(
-    () => reservations.filter((r) => r.status !== "cancelada").length,
-    [reservations],
+    () => operationalReservations.filter((r) => r.status !== "cancelada").length,
+    [operationalReservations],
   );
 
   const confirmedByDate = useMemo(() => {
     const map = new Map<string, Reservation[]>();
     for (const r of confirmed) {
+      if (parseReservationRestaurant(r.area) !== calendarRestaurant) continue;
       const k = r.reservation_date;
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(r);
@@ -121,7 +147,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       list.sort((a, b) => normalizeTimeKey(a.reservation_time).localeCompare(normalizeTimeKey(b.reservation_time)));
     }
     return map;
-  }, [confirmed]);
+  }, [confirmed, calendarRestaurant]);
 
   const y = calendarMonth.getFullYear();
   const m = calendarMonth.getMonth();
@@ -141,26 +167,69 @@ export function AdminReservationsDashboard({ reservations }: Props) {
 
   const selectedDayReservations = useMemo(() => {
     if (!selectedDate) return [];
-    return confirmed.filter((r) => r.reservation_date === selectedDate);
-  }, [confirmed, selectedDate]);
+    return confirmed.filter(
+      (r) =>
+        r.reservation_date === selectedDate &&
+        parseReservationRestaurant(r.area) === calendarRestaurant,
+    );
+  }, [confirmed, selectedDate, calendarRestaurant]);
 
-  async function changeStatus(id: string, status: "confirmada" | "cancelada", mesa?: number) {
+  async function changeStatus(
+    id: string,
+    status: "confirmada" | "cancelada",
+    mesa?: number,
+    rejectionReason?: string,
+  ) {
     setLoadingId(id);
     setManualMsg("");
-    const body =
-      status === "confirmada" && mesa != null
-        ? { status, mesa }
-        : { status };
+    const body: Record<string, unknown> = { status };
+    if (status === "confirmada" && mesa != null) {
+      body.mesa = mesa;
+    }
+    if (status === "cancelada" && rejectionReason && rejectionReason.trim()) {
+      body.rejection_reason = rejectionReason.trim();
+    }
     const res = await fetch(`/api/reservations/${id}/status`, {
       method: "PATCH",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     setLoadingId(null);
+    const j = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
       setManualMsg(j.error || "No se pudo actualizar el estado.");
       return;
+    }
+    if (status === "confirmada") {
+      if (j.emailSent) {
+        setManualMsg("Reserva confirmada y correo enviado al correo del cliente.");
+      } else if (j.emailWarning) {
+        setManualMsg(j.emailWarning);
+      } else {
+        setManualMsg(
+          "Reserva confirmada. No se reporto envio de correo (revisa variables SMTP en el servidor).",
+        );
+      }
+    } else if (status === "cancelada") {
+      const dest = j.emailTo ? ` (${j.emailTo})` : "";
+      if (j.emailSent) {
+        setManualMsg(
+          `Reserva rechazada. Correo de notificacion enviado al cliente${dest}. Revise tambien spam o correo no deseado.`,
+        );
+      } else if (j.emailWarning) {
+        setManualMsg(j.emailWarning);
+      } else if (j.emailSkipReason) {
+        setManualMsg(`Reserva rechazada. ${j.emailSkipReason}`);
+      } else if (j.emailAttempted === false) {
+        setManualMsg(
+          "Reserva rechazada. No se intento enviar correo (solo aplica a solicitudes pendientes).",
+        );
+      } else {
+        setManualMsg(
+          `Reserva rechazada. No se reporto envio de correo${dest}. Revise variables SMTP en el servidor y redeploy.`,
+        );
+      }
     }
     router.refresh();
   }
@@ -191,8 +260,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
     const fd = new FormData(e.currentTarget);
     const status = manualStatus;
     const mesaVal = fd.get("mesa");
-    const areaRaw = String(fd.get("area") || "climatizado");
-    const area = areaRaw === "terraza" ? "terraza" : "climatizado";
+    const area = parseReservationRestaurant(String(fd.get("area") || "cbari"));
     const payload = {
       full_name: String(fd.get("full_name") || ""),
       email: String(fd.get("email") || ""),
@@ -214,10 +282,21 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const j = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
       setManualMsg(j.error || "Error al crear la reserva.");
       return;
+    }
+    if (status === "confirmada") {
+      if (j.emailSent) {
+        setManualMsg("Reserva creada y correo de confirmacion enviado al cliente.");
+      } else if (j.emailWarning) {
+        setManualMsg(j.emailWarning);
+      } else {
+        setManualMsg("Reserva creada. No se reporto envio de correo (revisa variables SMTP en el servidor).");
+      }
+    } else {
+      setManualMsg("Reserva pendiente creada. No se enviara correo hasta confirmarla.");
     }
     e.currentTarget.reset();
     setManualDate("");
@@ -230,7 +309,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
   async function saveEdit(id: string) {
     if (
       hasReservationSlotConflict(
-        reservations,
+        operationalReservations,
         editForm.reservation_date,
         editForm.reservation_time,
         id,
@@ -250,6 +329,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
         reservation_date: editForm.reservation_date,
         reservation_time: editForm.reservation_time,
         mesa: editForm.mesa === "" ? null : Number(editForm.mesa),
+        notes: editForm.notes,
       }),
     });
     setLoadingId(null);
@@ -268,6 +348,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       reservation_date: r.reservation_date,
       reservation_time: snapReservationTimeToHalfHour(normalizeTimeKey(r.reservation_time)),
       mesa: r.mesa != null ? String(r.mesa) : "",
+      notes: r.notes ?? "",
     });
   }
 
@@ -279,7 +360,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
         </p>
       )}
 
-      <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => setManualOpen((o) => !o)}
@@ -292,6 +373,9 @@ export function AdminReservationsDashboard({ reservations }: Props) {
         >
           Nueva reserva +
         </button>
+        <ReservationsPrintDialog reservations={operationalReservations} eventTitles={eventTitles} />
+      </div>
+      <div className="space-y-3">
         {manualOpen && (
           <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm sm:p-6">
             <form onSubmit={submitManual} className="grid gap-3 sm:grid-cols-2">
@@ -299,9 +383,17 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               <input name="email" type="email" required className="rounded-md border bg-transparent p-3" placeholder="Correo" />
               <input name="phone" required className="rounded-md border bg-transparent p-3" placeholder="Telefono" />
               <input name="guests" type="number" min={1} max={MAX_GUESTS_PER_RESERVATION} defaultValue={2} required className="rounded-md border bg-transparent p-3" placeholder="Personas" />
-              <select name="area" className="rounded-md border bg-transparent p-3" defaultValue="climatizado">
-                <option value="climatizado">Area: Climatizado</option>
-                <option value="terraza">Area: Terraza</option>
+              <select
+                name="area"
+                className="rounded-md border bg-transparent p-3"
+                value={manualArea}
+                onChange={(e) => setManualArea(parseReservationRestaurant(e.target.value))}
+              >
+                {RESTAURANTS.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    Restaurante: {r.shortLabel} ({tableCountMap[r.key]} mesas)
+                  </option>
+                ))}
               </select>
               <input
                 name="reservation_date"
@@ -370,9 +462,26 @@ export function AdminReservationsDashboard({ reservations }: Props) {
         <h2 className="mb-4 text-lg font-semibold tracking-wide text-[var(--admin-foreground)]">
           Calendario — reservas confirmadas
         </h2>
-        <p className="mb-4 text-sm text-[var(--foreground-muted)]">
-          10 mesas disponibles; cada reserva admite de 1 a {MAX_GUESTS_PER_RESERVATION} personas. Las celdas muestran cuantas reservas confirmadas hay ese dia.
+        <p className="mb-3 text-sm text-[var(--foreground-muted)]">
+          Mesas por restaurante (configurables en Horario de reservas). Cada reserva admite de 1 a{" "}
+          {MAX_GUESTS_PER_RESERVATION} personas. Solo hoy y fechas futuras; las pasadas quedan en Reportería.
         </p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {RESTAURANTS.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => setCalendarRestaurant(r.key)}
+              className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                calendarRestaurant === r.key
+                  ? "border-[var(--admin-accent)] bg-blue-50 text-[var(--admin-accent)]"
+                  : "border-[var(--admin-border)] bg-white text-[var(--admin-foreground)] hover:bg-slate-50"
+              }`}
+            >
+              {r.shortLabel} — {tableCountMap[r.key]} mesas
+            </button>
+          ))}
+        </div>
         <div className="mb-4 flex items-center justify-between gap-2">
           <button
             type="button"
@@ -421,9 +530,9 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                     {list.slice(0, 6).map((r) => (
                       <span
                         key={r.id}
-                        title={`Mesa ${r.mesa} Â· ${normalizeTimeKey(r.reservation_time)}`}
+                        title={`Mesa ${r.mesa} · ${normalizeTimeKey(r.reservation_time)}`}
                         className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
+                        style={{ backgroundColor: mesaColor(r.mesa ?? 1, calendarTableCount) }}
                       />
                     ))}
                     {list.length > 6 && (
@@ -436,10 +545,12 @@ export function AdminReservationsDashboard({ reservations }: Props) {
           })}
         </div>
         <div className="mt-4 flex flex-wrap gap-3 text-xs">
-          <span className="text-[var(--foreground-muted)]">Mesas:</span>
-          {Array.from({ length: MESA_COUNT }, (_, i) => i + 1).map((n) => (
+          <span className="text-[var(--foreground-muted)]">
+            Mesas {RESTAURANTS.find((r) => r.key === calendarRestaurant)?.shortLabel}:
+          </span>
+          {Array.from({ length: calendarTableCount }, (_, i) => i + 1).map((n) => (
             <span key={n} className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: mesaColor(n) }} />
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: mesaColor(n, calendarTableCount) }} />
               {n}
             </span>
           ))}
@@ -449,7 +560,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
       {selectedDate && (
         <section className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm sm:p-6">
           <h3 className="mb-3 text-lg font-semibold text-[var(--admin-foreground)]">
-            Confirmadas el {selectedDate}
+            Confirmadas el {selectedDate} — {RESTAURANTS.find((r) => r.key === calendarRestaurant)?.shortLabel}
           </h3>
           {selectedDayReservations.length === 0 ? (
             <p className="text-sm text-[var(--foreground-muted)]">Sin reservas confirmadas este dia.</p>
@@ -465,7 +576,12 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                       <p className="sm:col-span-2">
                         <span
                           className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
-                          style={{ backgroundColor: mesaColor(r.mesa ?? 1) }}
+                          style={{
+                            backgroundColor: mesaColor(
+                              r.mesa ?? 1,
+                              getTableCountForArea(r.area, tableCountMap),
+                            ),
+                          }}
                         />
                         <strong className="text-[var(--admin-foreground)]">{r.full_name}</strong>
                       </p>
@@ -494,8 +610,13 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                         <span className="text-[var(--foreground-muted)]">Mesa:</span> {r.mesa ?? "—"}
                       </p>
                       <p>
-                        <span className="text-[var(--foreground-muted)]">Area:</span> {formatReservationAreaLong(r.area)}
+                        <span className="text-[var(--foreground-muted)]">Restaurante:</span> {formatReservationAreaLong(r.area)}
                       </p>
+                      {r.event_id && eventTitles[r.event_id] ? (
+                        <p>
+                          <span className="text-[var(--foreground-muted)]">Evento:</span> {eventTitles[r.event_id]}
+                        </p>
+                      ) : null}
                       <p>
                         <span className="text-[var(--foreground-muted)]">Origen:</span>{" "}
                         {r.source === "manual" ? "Manual" : "Web"}
@@ -515,7 +636,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                         className="rounded-md border border-[var(--admin-border)] bg-white px-3 py-1.5 text-xs text-[var(--admin-foreground)] hover:bg-slate-100"
                         onClick={() => openEdit(r)}
                       >
-                        Editar fecha / hora / mesa
+                        Editar fecha / hora / mesa / notas
                       </button>
                       <button
                         type="button"
@@ -554,7 +675,13 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                   <strong>Personas:</strong> {editingReservation.guests}
                 </p>
                 <p>
-                  <strong>Area:</strong> {formatReservationAreaLong(editingReservation.area)}
+                  <strong>Restaurante:</strong> {formatReservationAreaLong(editingReservation.area)}
+                  {editingReservation.event_id && eventTitles[editingReservation.event_id] ? (
+                    <>
+                      <br />
+                      <strong>Evento:</strong> {eventTitles[editingReservation.event_id]}
+                    </>
+                  ) : null}
                 </p>
                 <p>
                   <strong>Origen:</strong> {editingReservation.source === "manual" ? "Manual" : "Web"}
@@ -565,7 +692,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               </div>
             ) : null}
             <p className="mb-3 text-xs font-medium text-[var(--admin-muted)]">
-              Solo puedes modificar fecha, hora y mesa.
+              Puedes modificar fecha, hora, mesa y notas internas para el formato impreso.
             </p>
             <div className="space-y-3">
               <label className="block text-xs text-[var(--foreground-muted)]">
@@ -600,15 +727,19 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                   onChange={(e) => setEditForm((f) => ({ ...f, mesa: e.target.value }))}
                 >
                   {(() => {
+                    const editArea = editingReservation?.area;
+                    const editCount = getTableCountForArea(editArea, tableCountMap);
                     const free = availableMesaList(
-                      reservations,
+                      operationalReservations,
+                      editArea,
+                      editCount,
                       editForm.reservation_date,
                       editForm.reservation_time,
                       editId ?? undefined,
                     );
                     const cur = editForm.mesa ? Number(editForm.mesa) : null;
                     const opts = new Set(free);
-                    if (cur != null && cur >= 1 && cur <= MESA_COUNT) opts.add(cur);
+                    if (cur != null && cur >= 1 && cur <= editCount) opts.add(cur);
                     return [...opts].sort((a, b) => a - b).map((n) => (
                       <option key={n} value={n}>
                         Mesa {n}
@@ -616,6 +747,18 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                     ));
                   })()}
                 </select>
+              </label>
+              <label className="block text-xs text-[var(--foreground-muted)]">
+                Notas internas (apareceran en el formato impreso)
+                <textarea
+                  className="mt-1 min-h-24 w-full rounded-md border bg-transparent p-2 text-sm text-[var(--admin-foreground)]"
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Detalles del cliente, alergias, preferencias, asignacion especial, etc."
+                />
+                <span className="mt-1 block text-[11px] text-[var(--admin-muted)]">
+                  Estas notas son solo para uso interno y se imprimen en la hoja de la reserva.
+                </span>
               </label>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -639,7 +782,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                 className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-4 py-2 text-sm text-amber-900 hover:bg-amber-50 disabled:opacity-50"
                 disabled={loadingId === editId}
                 onClick={() => {
-                  const r = reservations.find((x) => x.id === editId);
+                  const r = operationalReservations.find((x) => x.id === editId);
                   deleteReservation(editId, r?.full_name);
                 }}
               >
@@ -664,10 +807,12 @@ export function AdminReservationsDashboard({ reservations }: Props) {
             <PendingCard
               key={r.id}
               r={r}
-              reservations={reservations}
+              reservations={operationalReservations}
+              tableCount={getTableCountForArea(r.area, tableCountMap)}
+              eventTitles={eventTitles}
               loadingId={loadingId}
               onConfirm={(mesa) => changeStatus(r.id, "confirmada", mesa)}
-              onReject={() => changeStatus(r.id, "cancelada")}
+              onReject={(reason) => changeStatus(r.id, "cancelada", undefined, reason)}
               onDelete={() => deleteReservation(r.id, r.full_name)}
             />
           ))}
@@ -690,7 +835,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
               )}
             </h2>
             <p className="mt-0.5 text-sm text-[var(--foreground-muted)]">
-              Pendientes y confirmadas en orden por fecha. Tabla compacta y busqueda.
+              Pendientes y confirmadas de hoy en adelante. Las fechas pasadas solo en Reportería.
             </p>
           </div>
           {activeListOpen ? (
@@ -727,7 +872,7 @@ export function AdminReservationsDashboard({ reservations }: Props) {
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Hora</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Cliente</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Pers.</th>
-                    <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Area</th>
+                    <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Restaurante</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Mesa</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Estado</th>
                     <th className="border-b border-[var(--admin-border)] px-2 py-2 font-semibold sm:px-3">Origen</th>
@@ -807,6 +952,8 @@ export function AdminReservationsDashboard({ reservations }: Props) {
 function PendingCard({
   r,
   reservations,
+  tableCount,
+  eventTitles,
   loadingId,
   onConfirm,
   onReject,
@@ -814,16 +961,34 @@ function PendingCard({
 }: {
   r: Reservation;
   reservations: Reservation[];
+  tableCount: number;
+  eventTitles: Record<string, string>;
   loadingId: string | null;
   onConfirm: (mesa: number) => void;
-  onReject: () => void;
+  onReject: (reason: string) => void;
   onDelete: () => void;
 }) {
   const [mesa, setMesa] = useState<string>("");
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
   const free = useMemo(
-    () => availableMesaList(reservations, r.reservation_date, r.reservation_time, r.id),
-    [reservations, r.reservation_date, r.reservation_time, r.id],
+    () =>
+      availableMesaList(
+        reservations,
+        r.area,
+        tableCount,
+        r.reservation_date,
+        r.reservation_time,
+        r.id,
+      ),
+    [reservations, r.area, tableCount, r.reservation_date, r.reservation_time, r.id],
   );
+
+  function submitReject() {
+    onReject(rejectReason);
+    setRejectOpen(false);
+    setRejectReason("");
+  }
 
   return (
     <div className="rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-4 shadow-sm">
@@ -832,7 +997,8 @@ function PendingCard({
         <p><strong>Correo:</strong> {r.email}</p>
         <p><strong>Telefono:</strong> {r.phone}</p>
         <p><strong>Personas:</strong> {r.guests}</p>
-        <p><strong>Area:</strong> {formatReservationAreaLong(r.area)}</p>
+        <p><strong>Restaurante:</strong> {formatReservationAreaLong(r.area)} ({tableCount} mesas)</p>
+        {r.event_id && eventTitles[r.event_id] ? <p><strong>Evento:</strong> {eventTitles[r.event_id]}</p> : null}
         <p><strong>Fecha:</strong> {r.reservation_date}</p>
         <p><strong>Hora:</strong> {normalizeTimeKey(r.reservation_time)}</p>
         <p><strong>Origen:</strong> {r.source === "manual" ? "Manual" : "Web"}</p>
@@ -866,7 +1032,7 @@ function PendingCard({
           type="button"
           disabled={loadingId === r.id}
           className="rounded-md bg-amber-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-50"
-          onClick={onReject}
+          onClick={() => setRejectOpen(true)}
         >
           Rechazar
         </button>
@@ -880,6 +1046,52 @@ function PendingCard({
           Eliminar
         </button>
       </div>
+
+      {rejectOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-md rounded-xl border border-[var(--admin-border)] bg-[var(--admin-card)] p-5 shadow-xl">
+            <h4 className="text-base font-semibold text-[var(--admin-foreground)]">
+              Rechazar solicitud de {r.full_name}
+            </h4>
+            <p className="mt-1 text-sm text-[var(--foreground-muted)]">
+              Escriba el motivo del rechazo. Sera incluido en el correo que se enviara al cliente.
+            </p>
+            <label className="mt-3 block text-xs text-[var(--foreground-muted)]">
+              Motivo (visible para el cliente)
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Ej. Sin disponibilidad en el horario solicitado. Te invitamos a reservar otro horario."
+                className="mt-1 min-h-28 w-full rounded-md border border-[var(--admin-border)] bg-white p-2 text-sm text-[var(--admin-foreground)]"
+                autoFocus
+              />
+            </label>
+            <p className="mt-2 text-xs text-[var(--foreground-muted)]">
+              Si deja el motivo en blanco, se enviara el correo de rechazo sin detalle adicional.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={loadingId === r.id}
+                className="rounded-md bg-amber-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:opacity-95 disabled:opacity-50"
+                onClick={submitReject}
+              >
+                Enviar rechazo
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--admin-border)] bg-white px-4 py-2 text-sm text-[var(--admin-foreground)] hover:bg-slate-50"
+                onClick={() => {
+                  setRejectOpen(false);
+                  setRejectReason("");
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

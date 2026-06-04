@@ -6,6 +6,8 @@ import {
   CalendarHeart,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  FileSpreadsheet,
   Images,
   LayoutDashboard,
   Settings,
@@ -13,29 +15,88 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { AppRole, SessionRole } from "@/lib/admin-auth";
+import { adminPath } from "@/lib/admin-path";
+import {
+  canAccessReporting,
+  canManageContent,
+  canManageReservations,
+  canManageUsers,
+} from "@/lib/admin-permissions";
 
-const STORAGE_KEY = "cava-admin-sidebar-collapsed";
+const STORAGE_KEY = "copantl-admin-sidebar-collapsed";
 
-const navItems = [
-  { href: "/admin", label: "Reservas", icon: LayoutDashboard, adminOnly: false },
-  { href: "/admin/menu", label: "Productos", icon: UtensilsCrossed, adminOnly: true },
-  { href: "/admin/eventos", label: "Eventos", icon: CalendarHeart, adminOnly: true },
-  { href: "/admin/galeria", label: "Galeria", icon: Images, adminOnly: true },
-  { href: "/admin/configuracion", label: "Configuracion", icon: Settings, adminOnly: true },
-  { href: "/admin/usuarios", label: "Usuarios", icon: Users, adminOnly: true },
-] as const;
+type NavItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  show: (role: AppRole) => boolean;
+};
+
+const navItems: NavItem[] = [
+  {
+    href: adminPath(),
+    label: "Reservas",
+    icon: LayoutDashboard,
+    show: canManageReservations,
+  },
+  {
+    href: adminPath("/reporteria"),
+    label: "Reportería",
+    icon: FileSpreadsheet,
+    show: canAccessReporting,
+  },
+  {
+    href: adminPath("/menu"),
+    label: "Menús",
+    icon: UtensilsCrossed,
+    show: canManageContent,
+  },
+  {
+    href: adminPath("/eventos"),
+    label: "Eventos",
+    icon: CalendarHeart,
+    show: canManageContent,
+  },
+  {
+    href: adminPath("/galeria"),
+    label: "Galeria",
+    icon: Images,
+    show: canManageContent,
+  },
+  {
+    href: adminPath("/horarios"),
+    label: "Horario reservas",
+    icon: Clock,
+    show: canManageContent,
+  },
+  {
+    href: adminPath("/configuracion"),
+    label: "Configuracion",
+    icon: Settings,
+    show: canManageContent,
+  },
+  {
+    href: adminPath("/usuarios"),
+    label: "Usuarios",
+    icon: Users,
+    show: canManageUsers,
+  },
+];
 
 type Props = {
   children: React.ReactNode;
-  showAdminNav: boolean;
+  session: SessionRole;
   roleLabel: string;
+  defaultPath: string;
 };
 
-export function AdminShell({ children, showAdminNav, roleLabel }: Props) {
+export function AdminShell({ children, session, roleLabel, defaultPath }: Props) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const basePath = adminPath();
 
-  const nav = navItems.filter((item) => !item.adminOnly || showAdminNav);
+  const nav = navItems.filter((item) => item.show(session.role));
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(STORAGE_KEY) === "1");
@@ -63,19 +124,25 @@ export function AdminShell({ children, showAdminNav, roleLabel }: Props) {
             type="button"
             onClick={toggleSidebar}
             className="absolute -right-3 top-5 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--admin-border)] bg-white text-[var(--admin-muted)] shadow-sm hover:bg-slate-50"
-            aria-label="Ocultar menu"
-            title="Ocultar menu"
+            aria-label="Ocultar menú"
+            title="Ocultar menú"
           >
             <ChevronLeft size={16} />
           </button>
 
-          <p className="section-title mb-2 text-3xl tracking-[0.2em] text-[var(--admin-brand)]">CAVA</p>
+          <Link href={defaultPath} className="block">
+            <p className="section-title mb-2 text-xl tracking-[0.12em] text-[var(--admin-brand)]">
+              Copantl Reservaciones
+            </p>
+          </Link>
           <p className="mb-4 text-xs font-medium text-[var(--admin-muted)]">{roleLabel}</p>
 
           <nav className="space-y-1">
             {nav.map((item) => {
               const Icon = item.icon;
-              const active = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+              const active =
+                pathname === item.href ||
+                (item.href !== basePath && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.href}
@@ -107,8 +174,8 @@ export function AdminShell({ children, showAdminNav, roleLabel }: Props) {
           type="button"
           onClick={toggleSidebar}
           className="fixed left-3 top-6 z-30 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--admin-border)] bg-[var(--admin-sidebar)] text-[var(--admin-muted)] shadow-md hover:bg-white md:left-4 md:top-8"
-          aria-label="Mostrar menu"
-          title="Mostrar menu"
+          aria-label="Mostrar menú"
+          title="Mostrar menú"
         >
           <ChevronRight size={20} />
         </button>

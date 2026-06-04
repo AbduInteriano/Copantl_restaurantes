@@ -22,6 +22,25 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["gallery_items"]["Insert"]>;
       };
+      restaurant_menu_images: {
+        Row: {
+          id: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          image_url: string;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          image_url: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["restaurant_menu_images"]["Insert"]>;
+      };
       menu_categories: {
         Row: {
           id: string;
@@ -94,6 +113,9 @@ export type Database = {
           id: string;
           title: string | null;
           image_url: string;
+          event_date: string | null;
+          reservation_start_time: string | null;
+          reservation_end_time: string | null;
           sort_order: number;
           is_active: boolean;
           created_at: string;
@@ -102,11 +124,44 @@ export type Database = {
           id?: string;
           title?: string | null;
           image_url: string;
+          event_date?: string | null;
+          reservation_start_time?: string | null;
+          reservation_end_time?: string | null;
           sort_order?: number;
           is_active?: boolean;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["event_banners"]["Insert"]>;
+      };
+      restaurant_profiles: {
+        Row: {
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          reservation_start_time: string;
+          reservation_end_time: string;
+          display_hours_text: string;
+          table_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+          reservation_start_time?: string;
+          reservation_end_time?: string;
+          display_hours_text?: string;
+          table_count?: number;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["restaurant_profiles"]["Insert"]>;
+      };
+      event_banner_restaurants: {
+        Row: {
+          event_id: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+        };
+        Insert: {
+          event_id: string;
+          restaurant: "la_churrasqueria" | "la_posada" | "cbari";
+        };
+        Update: Partial<Database["public"]["Tables"]["event_banner_restaurants"]["Insert"]>;
       };
       reservations: {
         Row: {
@@ -118,10 +173,12 @@ export type Database = {
           reservation_time: string;
           guests: number;
           mesa: number | null;
-          /** Preferencia de area (tras migracion SQL); puede faltar en filas antiguas */
-          area?: "climatizado" | "terraza" | null;
+          /** Restaurante elegido (cbari, la_posada, la_churrasqueria) */
+          area?: "cbari" | "la_posada" | "la_churrasqueria" | null;
+          event_id?: string | null;
           source: "web" | "manual";
           notes: string | null;
+          rejection_reason: string | null;
           status: "pendiente" | "confirmada" | "cancelada";
           created_at: string;
         };
@@ -134,23 +191,40 @@ export type Database = {
           reservation_time: string;
           guests: number;
           mesa?: number | null;
-          area?: "climatizado" | "terraza";
+          area?: "cbari" | "la_posada" | "la_churrasqueria";
+          event_id?: string | null;
           source?: "web" | "manual";
           notes?: string | null;
+          rejection_reason?: string | null;
           status?: "pendiente" | "confirmada" | "cancelada";
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["reservations"]["Insert"]>;
       };
+      admin_login_lockouts: {
+        Row: {
+          email: string;
+          failed_attempts: number;
+          locked_until: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          email: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["admin_login_lockouts"]["Insert"]>;
+      };
       user_profiles: {
         Row: {
           user_id: string;
-          role: "admin" | "supervisor";
+          role: "super_admin" | "admin" | "supervisor" | "reservaciones" | "reporteria";
           created_at: string;
         };
         Insert: {
           user_id: string;
-          role: "admin" | "supervisor";
+          role: "super_admin" | "admin" | "supervisor" | "reservaciones" | "reporteria";
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["user_profiles"]["Insert"]>;
@@ -161,6 +235,8 @@ export type Database = {
           hero_title: string;
           hero_subtitle: string;
           logo_url: string | null;
+          logo_url_2: string | null;
+          logo_url_3: string | null;
           instagram_url: string | null;
           facebook_url: string | null;
           tiktok_url: string | null;
@@ -177,6 +253,8 @@ export type Database = {
           hero_title: string;
           hero_subtitle: string;
           logo_url?: string | null;
+          logo_url_2?: string | null;
+          logo_url_3?: string | null;
           instagram_url?: string | null;
           facebook_url?: string | null;
           tiktok_url?: string | null;

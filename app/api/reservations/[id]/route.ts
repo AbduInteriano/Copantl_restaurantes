@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { validateMesaForArea } from "@/lib/mesa-server";
 import { MAX_GUESTS_PER_RESERVATION } from "@/lib/reservations";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
@@ -56,10 +57,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const targetStatus = (updates.status as Row["status"] | undefined) ?? row.status;
     if (targetStatus === "confirmada") {
       const m = payload.mesa == null || payload.mesa === "" ? null : Number(payload.mesa);
-      if (m == null || Number.isNaN(m) || m < 1 || m > 10) {
-        return NextResponse.json({ error: "Mesa debe ser del 1 al 10 si la reserva esta confirmada." }, { status: 400 });
+      const check = await validateMesaForArea(m, row.area);
+      if (!check.ok) {
+        return NextResponse.json({ error: check.error }, { status: 400 });
       }
-      updates.mesa = m;
+      updates.mesa = check.mesa;
     } else if (payload.mesa === null || payload.mesa === "") {
       updates.mesa = null;
     }
@@ -72,11 +74,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const nextStatus = (updates.status as Row["status"] | undefined) ?? row.status;
   const nextMesa =
     updates.mesa !== undefined ? (updates.mesa as number | null) : row.mesa;
-  if (nextStatus === "confirmada" && (nextMesa == null || nextMesa < 1 || nextMesa > 10)) {
-    return NextResponse.json(
-      { error: "Las reservas confirmadas requieren una mesa del 1 al 10." },
-      { status: 400 },
-    );
+  if (nextStatus === "confirmada") {
+    const check = await validateMesaForArea(nextMesa, row.area);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: 400 });
+    }
+    if (updates.mesa !== undefined) updates.mesa = check.mesa;
   }
 
   const { error } = await supabase.from("reservations").update(updates as never).eq("id", params.id);
@@ -84,7 +87,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (error) {
     if (error.code === "23505") {
       return NextResponse.json(
-        { error: "Esa mesa ya esta ocupada en esa fecha y hora." },
+        { error: "Esa mesa ya esta ocupada en esa fecha y hora para este restaurante." },
         { status: 409 },
       );
     }

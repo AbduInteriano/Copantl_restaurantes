@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
-import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import {
+  ASSIGNABLE_ROLES,
+  canManageUsers,
+  getSessionRole,
+  isProtectedAccount,
+  normalizeAppRole,
+} from "@/lib/admin-auth";
+import type { AppRole } from "@/lib/admin-permissions";
 import { createServiceClient } from "@/lib/supabase/admin";
+
+async function getTargetEmail(svc: ReturnType<typeof createServiceClient>, targetId: string) {
+  const { data, error } = await svc.auth.admin.getUserById(targetId);
+  if (error || !data.user) return null;
+  return data.user.email ?? null;
+}
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getSessionRole();
-  if (!session || !isAdminRole(session.role)) {
+  if (!session || !canManageUsers(session.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
@@ -13,6 +26,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const svc = createServiceClient();
 
   try {
+    const targetEmail = await getTargetEmail(svc, targetId);
+    if (!targetEmail) {
+      return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
+    }
+
+    if (isProtectedAccount(targetEmail)) {
+      return NextResponse.json(
+        { error: "La cuenta super administrador no puede modificarse desde el panel." },
+        { status: 403 },
+      );
+    }
+
     if (body.password != null && String(body.password).length > 0) {
       const password = String(body.password);
       if (password.length < 6) {
@@ -22,15 +47,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       if (error) throw error;
     }
 
-    if (body.role === "admin" || body.role === "supervisor") {
-      if (targetId === session.userId && body.role === "supervisor") {
-        return NextResponse.json(
-          { error: "No puede cambiar su propio rol a supervisor." },
-          { status: 400 },
-        );
+    if (body.role != null) {
+      const role = normalizeAppRole(body.role) as AppRole;
+      if (!ASSIGNABLE_ROLES.includes(role)) {
+        return NextResponse.json({ error: "Rol no valido." }, { status: 400 });
+      }
+      if (targetId === session.userId && role !== session.role && session.role !== "super_admin") {
+        return NextResponse.json({ error: "No puede cambiar su propio rol." }, { status: 400 });
       }
       const { error } = await svc.from("user_profiles").upsert(
-        { user_id: targetId, role: body.role } as never,
+        { user_id: targetId, role } as never,
         { onConflict: "user_id" },
       );
       if (error) throw error;

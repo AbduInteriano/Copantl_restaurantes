@@ -2,29 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import { canManageContent, getSessionRole } from "@/lib/admin-auth";
+import { adminPath } from "@/lib/admin-path";
 import { createClient } from "@/lib/supabase/server";
 
-async function ensureAdmin() {
+async function ensureContentAccess() {
   const session = await getSessionRole();
-  if (!session || !isAdminRole(session.role)) {
-    redirect("/admin");
+  if (!session || !canManageContent(session.role)) {
+    redirect(adminPath());
   }
 }
 
-export async function createCategory(formData: FormData) {
-  await ensureAdmin();
-  const supabase = createClient();
-  await supabase.from("menu_categories").insert({
-    name: String(formData.get("name")),
-    sort_order: Number(formData.get("sort_order") ?? 0),
-  } as never);
-  revalidatePath("/admin/menu");
-  revalidatePath("/");
-}
-
 export async function createPromotion(formData: FormData) {
-  await ensureAdmin();
+  await ensureContentAccess();
   const supabase = createClient();
   await supabase.from("promotions").insert({
     title: String(formData.get("title")),
@@ -35,52 +25,55 @@ export async function createPromotion(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function createMenuItem(formData: FormData) {
-  await ensureAdmin();
-  const supabase = createClient();
-  await supabase.from("menu_items").insert({
-    category_id: String(formData.get("category_id")),
-    name: String(formData.get("name")),
-    description: String(formData.get("description") || ""),
-    price: Number(formData.get("price") ?? 0),
-    is_active: true,
-  } as never);
-  revalidatePath("/admin/menu");
-  revalidatePath("/");
-}
-
 export async function createGalleryItem(formData: FormData) {
-  await ensureAdmin();
+  await ensureContentAccess();
   const supabase = createClient();
   await supabase.from("gallery_items").insert({
     title: String(formData.get("title")),
     image_url: String(formData.get("image_url")),
     sort_order: Number(formData.get("sort_order") ?? 0),
   } as never);
-  revalidatePath("/admin/galeria");
+  revalidatePath(adminPath("/galeria"));
   revalidatePath("/");
 }
 
-export async function updateSettings(formData: FormData) {
-  await ensureAdmin();
+export type SettingsFormState = {
+  success: boolean;
+  error?: string;
+};
+
+function emptyToNull(value: FormDataEntryValue | null): string | null {
+  const s = String(value ?? "").trim();
+  return s || null;
+}
+
+export async function updateSettings(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  await ensureContentAccess();
   const supabase = createClient();
-  await supabase.from("site_settings").upsert(
-    {
-      id: 1,
-      hero_title: String(formData.get("hero_title")),
-      hero_subtitle: String(formData.get("hero_subtitle")),
-      logo_url: String(formData.get("logo_url") || "") || null,
-      instagram_url: String(formData.get("instagram_url") || "") || null,
-      facebook_url: String(formData.get("facebook_url") || "") || null,
-      tiktok_url: String(formData.get("tiktok_url") || "") || null,
-      whatsapp_url: String(formData.get("whatsapp_url") || "") || null,
-      about_text: String(formData.get("about_text")),
-      address: String(formData.get("address")),
-      phone: String(formData.get("phone")),
-      email: String(formData.get("email")),
-    } as never,
-    { onConflict: "id" },
-  );
-  revalidatePath("/admin/configuracion");
+
+  const { error } = await supabase
+    .from("site_settings")
+    .update({
+      hero_title: String(formData.get("hero_title") ?? "").trim(),
+      about_text: String(formData.get("about_text") ?? "").trim(),
+      address: String(formData.get("address") ?? "").trim(),
+      phone: String(formData.get("phone") ?? "").trim(),
+      email: String(formData.get("email") ?? "").trim(),
+      instagram_url: emptyToNull(formData.get("instagram_url")),
+      facebook_url: emptyToNull(formData.get("facebook_url")),
+      tiktok_url: emptyToNull(formData.get("tiktok_url")),
+      whatsapp_url: emptyToNull(formData.get("whatsapp_url")),
+    } as never)
+    .eq("id", 1);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath(adminPath("/configuracion"));
   revalidatePath("/");
+  return { success: true };
 }

@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
-import { getSessionRole, isAdminRole } from "@/lib/admin-auth";
+import {
+  ASSIGNABLE_ROLES,
+  canManageUsers,
+  getSessionRole,
+  isProtectedAccount,
+  normalizeAppRole,
+} from "@/lib/admin-auth";
+import type { AppRole } from "@/lib/admin-permissions";
+import { getLockoutsByEmails, isCurrentlyLocked, normalizeLoginEmail } from "@/lib/login-lockout";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 export async function GET() {
   const session = await getSessionRole();
-  if (!session || !isAdminRole(session.role)) {
+  if (!session || !canManageUsers(session.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
@@ -16,12 +24,31 @@ export async function GET() {
     const { data: profiles, error: pErr } = await svc.from("user_profiles").select("user_id, role");
     if (pErr) throw pErr;
 
-    const profileMap = new Map((profiles ?? []).map((p) => [p.user_id as string, p.role as string]));
-    const users = (listData.users ?? []).map((u) => ({
-      id: u.id,
-      email: u.email ?? "",
-      role: (profileMap.get(u.id) as "admin" | "supervisor" | undefined) ?? "admin",
-    }));
+    const profileMap = new Map(
+      (profiles ?? []).map((p) => [p.user_id as string, normalizeAppRole(p.role as string)]),
+    );
+
+    const emails = (listData.users ?? []).map((u) => normalizeLoginEmail(u.email ?? ""));
+    const lockoutMap = await getLockoutsByEmails(emails);
+
+    const users = (listData.users ?? []).map((u) => {
+      const email = u.email ?? "";
+      const normalized = normalizeLoginEmail(email);
+      const lockRow = lockoutMap.get(normalized) ?? null;
+      const lockStatus = isCurrentlyLocked(lockRow);
+      const role: AppRole = isProtectedAccount(email)
+        ? "super_admin"
+        : profileMap.get(u.id) ?? "admin";
+      return {
+        id: u.id,
+        email,
+        role,
+        protected: isProtectedAccount(email),
+        loginLocked: lockStatus.locked,
+        failedAttempts: lockRow?.failed_attempts ?? 0,
+        lockedMinutesLeft: lockStatus.minutesLeft,
+      };
+    });
 
     return NextResponse.json({ users });
   } catch (e) {
@@ -32,7 +59,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getSessionRole();
-  if (!session || !isAdminRole(session.role)) {
+  if (!session || !canManageUsers(session.role)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
@@ -40,7 +67,15 @@ export async function POST(req: Request) {
     const body = await req.json();
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
-    const role = body.role === "admin" ? "admin" : "supervisor";
+    const role = normalizeAppRole(body.role);
+
+    if (isProtectedAccount(email)) {
+      return NextResponse.json({ error: "No se puede crear otro super administrador." }, { status: 400 });
+    }
+
+    if (!ASSIGNABLE_ROLES.includes(role)) {
+      return NextResponse.json({ error: "Rol no valido." }, { status: 400 });
+    }
 
     if (!email || !password || password.length < 6) {
       return NextResponse.json(

@@ -51,20 +51,20 @@ export function ImageGridModal({ title, items }: Props) {
               <p className="section-title text-2xl">{title}</p>
               <button
                 onClick={() => setSelectedIndex(null)}
-                className="rounded-md border p-2 hover:bg-black/20"
+                className="rounded-md border p-2 hover:bg-[var(--accent-sand)]"
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="max-h-[78vh] rounded-md bg-black/20 p-2">
+            <div className="max-h-[78vh] rounded-md bg-[var(--background-secondary)] p-2">
               <div className="flex items-center gap-1 sm:gap-2">
-                <button onClick={showPrev} className="rounded-md border p-2 hover:bg-black/20" aria-label="Imagen anterior">
+                <button onClick={showPrev} className="rounded-md border p-2 hover:bg-[var(--accent-sand)]" aria-label="Imagen anterior">
                   <ChevronLeft size={18} />
                 </button>
                 <div className="flex-1 overflow-auto">
                   <img src={selected.image_url} alt={selected.title ?? "Imagen"} className="mx-auto h-auto max-h-[72vh] w-auto rounded-md object-contain" />
                 </div>
-                <button onClick={showNext} className="rounded-md border p-2 hover:bg-black/20" aria-label="Imagen siguiente">
+                <button onClick={showNext} className="rounded-md border p-2 hover:bg-[var(--accent-sand)]" aria-label="Imagen siguiente">
                   <ChevronRight size={18} />
                 </button>
               </div>

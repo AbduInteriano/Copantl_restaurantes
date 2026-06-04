@@ -7,18 +7,27 @@ export type SocialUrlsInput = {
 };
 
 export type ResolvedSocialHrefs = {
-  instagramHref: string;
-  facebookHref: string;
-  tiktokHref: string;
-  whatsappHref: string;
+  instagramHref: string | null;
+  facebookHref: string | null;
+  tiktokHref: string | null;
+  whatsappHref: string | null;
 };
 
+function normalizeUrl(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 export function resolveSocialHrefs(input: SocialUrlsInput): ResolvedSocialHrefs {
+  const whatsappFromConfig = normalizeUrl(input.whatsappUrl);
   const whatsappNumber = input.phone.replace(/[^\d]/g, "");
+
   return {
-    whatsappHref: input.whatsappUrl || `https://wa.me/${whatsappNumber}`,
-    instagramHref: input.instagramUrl || "https://www.instagram.com/cava.honduras/",
-    facebookHref: input.facebookUrl || "https://www.facebook.com/Cavahonduras",
-    tiktokHref: input.tiktokUrl || "https://www.tiktok.com/@cavadrinks",
+    instagramHref: normalizeUrl(input.instagramUrl),
+    facebookHref: normalizeUrl(input.facebookUrl),
+    tiktokHref: normalizeUrl(input.tiktokUrl),
+    whatsappHref: whatsappFromConfig ?? (whatsappNumber ? `https://wa.me/${whatsappNumber}` : null),
   };
 }
