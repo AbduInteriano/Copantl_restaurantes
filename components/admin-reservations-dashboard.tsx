@@ -1,9 +1,9 @@
 ﻿"use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Trash2, X } from "lucide-react";
 import { ReservationsPrintDialog } from "@/components/reservations-print-dialog";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Database } from "@/lib/supabase/types";
 import {
   getTableCountMap,
@@ -85,6 +85,22 @@ export function AdminReservationsDashboard({
     mesa: "",
     notes: "",
   });
+  const [successInfo, setSuccessInfo] = useState<{
+    title: string;
+    detail: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!manualMsg) return;
+    const timer = window.setTimeout(() => setManualMsg(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [manualMsg]);
+
+  useEffect(() => {
+    if (!successInfo) return;
+    const timer = window.setTimeout(() => setSuccessInfo(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [successInfo]);
 
   const editingReservation = useMemo(
     () => (editId ? operationalReservations.find((r) => r.id === editId) ?? null : null),
@@ -257,7 +273,8 @@ export function AdminReservationsDashboard({
   async function submitManual(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setManualMsg("");
-    const fd = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const fd = new FormData(formEl);
     const status = manualStatus;
     const mesaVal = fd.get("mesa");
     const area = parseReservationRestaurant(String(fd.get("area") || "cbari"));
@@ -287,22 +304,36 @@ export function AdminReservationsDashboard({
       setManualMsg(j.error || "Error al crear la reserva.");
       return;
     }
+
+    let successDetail: string;
     if (status === "confirmada") {
       if (j.emailSent) {
-        setManualMsg("Reserva creada y correo de confirmacion enviado al cliente.");
+        successDetail = "Correo de confirmacion enviado al correo del cliente.";
       } else if (j.emailWarning) {
-        setManualMsg(j.emailWarning);
+        successDetail = j.emailWarning;
       } else {
-        setManualMsg("Reserva creada. No se reporto envio de correo (revisa variables SMTP en el servidor).");
+        successDetail = "Reserva confirmada. No se reporto envio de correo (revisa SMTP).";
       }
     } else {
-      setManualMsg("Reserva pendiente creada. No se enviara correo hasta confirmarla.");
+      successDetail = "Reserva pendiente registrada. No se enviara correo hasta confirmarla.";
     }
-    e.currentTarget.reset();
+
+    try {
+      formEl?.reset();
+    } catch {
+      /* Form may already be unmounted; ignore. */
+    }
     setManualDate("");
     setManualTime("");
     setManualStatus("confirmada");
     setManualOpen(false);
+    setSuccessInfo({
+      title:
+        status === "confirmada"
+          ? "Reserva confirmada creada"
+          : "Reserva pendiente creada",
+      detail: successDetail,
+    });
     router.refresh();
   }
 
@@ -355,10 +386,51 @@ export function AdminReservationsDashboard({
   return (
     <div className="space-y-10">
       {manualMsg && (
-        <p className="rounded-md border border-amber-200 bg-[var(--admin-danger-bg)] px-3 py-2 text-sm text-amber-950">
-          {manualMsg}
-        </p>
+        <div className="flex items-start justify-between gap-2 rounded-md border border-amber-200 bg-[var(--admin-danger-bg)] px-3 py-2 text-sm text-amber-950">
+          <span className="flex-1">{manualMsg}</span>
+          <button
+            type="button"
+            onClick={() => setManualMsg("")}
+            aria-label="Cerrar aviso"
+            className="shrink-0 rounded p-1 text-amber-900/70 hover:bg-amber-100/60 hover:text-amber-900"
+          >
+            <X size={16} />
+          </button>
+        </div>
       )}
+
+      {successInfo ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-[2px]"
+          role="alertdialog"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-emerald-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckCircle2 size={28} strokeWidth={1.8} aria-hidden />
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuccessInfo(null)}
+                aria-label="Cerrar"
+                className="rounded-lg border border-[var(--admin-border)] p-1.5 text-[var(--admin-muted)] hover:bg-slate-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <h3 className="mt-4 text-xl font-semibold text-[var(--admin-foreground)]">
+              {successInfo.title}
+            </h3>
+            <p className="mt-2 text-sm text-[var(--admin-foreground)]/80">
+              {successInfo.detail}
+            </p>
+            <p className="mt-3 text-[11px] text-[var(--admin-muted)]">
+              Este aviso se cerrara automaticamente.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <button
